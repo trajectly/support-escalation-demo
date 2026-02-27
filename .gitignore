@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 .DS_Store
+trajectly_pr_comment.md
 
 # Keep deterministic Trajectly artifacts required for CI replay
 .trajectly/*

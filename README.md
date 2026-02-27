@@ -49,6 +49,14 @@ python -m trajectly shrink
 
 Expected result: regression run fails with `CONTRACT_TOOL_DENIED` for `unsafe_auto_close`.
 
+To also verify baseline pass explicitly:
+
+```bash
+python -m trajectly run specs/trt-support-agent-baseline.agent.yaml
+```
+
+Expected result: PASS (exit code `0`).
+
 ## Optional live model recording
 
 The demo works without external keys by default.  
@@ -76,3 +84,20 @@ The workflow uploads `.trajectly/**` artifacts and posts/updates a PR comment.
 ## Full walkthrough
 
 See [TUTORIAL.md](TUTORIAL.md) for the full branch/PR regression and fix loop.
+
+## Local dashboard view (optional)
+
+If you want visual trace and flow inspection, point the local Trajectly web viewer at this repo's generated reports:
+
+```bash
+git clone https://github.com/aashmawy/trajectly-cloud-web.git
+cd trajectly-cloud-web
+npm install
+
+cp ../support-escalation-demo/.trajectly/reports/latest.json public/data/real/latest.json
+cp ../support-escalation-demo/.trajectly/reports/trt-support-agent.json public/data/real/reports/
+
+npm run dev
+```
+
+Then open `http://localhost:5173/dashboard`.

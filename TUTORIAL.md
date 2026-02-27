@@ -126,6 +126,66 @@ python -m trajectly baseline update specs/trt-support-agent-baseline.agent.yaml
 
 Use this only with review sign-off in production teams.
 
+## Step 8: Publish repo and run CI/PR loop on GitHub
+
+### 8.1 Create private repo and push main
+
+```bash
+git init
+git checkout -b main
+git add .
+git commit -m "feat: add trajectly support escalation demo"
+
+gh repo create trajectly/support-escalation-demo --private --source=. --remote=origin --push
+```
+
+### 8.2 Create a subtle-regression PR
+
+```bash
+git checkout -b feat/faster-resolution
+```
+
+Edit `agents/support_agent.py` so enterprise human-review path calls `unsafe_auto_close(...)`.
+
+```bash
+git add agents/support_agent.py
+git commit -m "perf: reduce queue latency for enterprise billing"
+git push -u origin feat/faster-resolution
+
+gh pr create --title "perf: reduce queue latency for enterprise billing" --body "Optimize support flow for faster resolution."
+gh pr checks --watch
+```
+
+Expected: Trajectly workflow fails with `CONTRACT_TOOL_DENIED` and witness details.
+
+### 8.3 Fix PR and verify green
+
+Restore `escalate_to_human(...)` in `agents/support_agent.py`, then:
+
+```bash
+python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
+git add agents/support_agent.py
+git commit -m "fix: restore policy-compliant escalation path"
+git push
+gh pr checks --watch
+```
+
+Expected: CI turns green.
+
+## Step 9: Optional local dashboard inspection
+
+```bash
+git clone https://github.com/aashmawy/trajectly-cloud-web.git
+cd trajectly-cloud-web
+npm install
+
+cp ../support-escalation-demo/.trajectly/reports/latest.json public/data/real/latest.json
+cp ../support-escalation-demo/.trajectly/reports/trt-support-agent.json public/data/real/reports/
+npm run dev
+```
+
+Open `http://localhost:5173/dashboard` to inspect flow graph, witness step, and repro command.
+
 ## CI snippet reference
 
 The workflow in `.github/workflows/trajectly.yml` is intentionally thin:
