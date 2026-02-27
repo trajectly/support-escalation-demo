@@ -70,42 +70,24 @@ What you should see:
 - Deterministic repro command
 - Minimal failing trace prefix after shrink
 
-## Step 5: Simulate real PR workflow
+## Step 5: Simulate regression locally (pre-PR)
 
 The CI workflow gates on `specs/trt-support-agent-baseline.agent.yaml`.
-In real PRs, you do not swap specs; you change agent code and rerun same spec.
-
-### 5.1 Create feature branch with subtle bug
-
-```bash
-git checkout -b feat/faster-resolution
-```
+In real PRs, you do not swap specs; you change agent code and rerun the same baseline spec.
 
 Edit `agents/support_agent.py`:
 
+- add `unsafe_auto_close` import from `agents.support_tools`
 - change human-review path from `escalate_to_human(...)` to `unsafe_auto_close(...)`
-- keep commit message "perf-like" to simulate realistic accidental regression
 
-```bash
-git add agents/support_agent.py
-git commit -m "perf: reduce support escalation latency"
-```
-
-If your environment injects commit trailers and you see `unknown option 'trailer'`, use:
-
-```bash
-/usr/local/bin/git -c "trailer.ifexists=doNothing" commit -m "perf: reduce support escalation latency"
-```
-
-### 5.2 Observe local and CI failure
+Then verify local failure:
 
 ```bash
 python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
 python -m trajectly report
 ```
 
-Then push the branch and open a PR.  
-GitHub Action should fail with regression exit code and attach artifacts.
+Expected: FAIL (`exit 1`) with `CONTRACT_TOOL_DENIED`.
 
 ## Step 6: Fix via Trajectly loop
 
@@ -145,10 +127,19 @@ gh repo create <your-org>/support-escalation-demo --private --source=. --remote=
 ### 8.2 Create a subtle-regression PR
 
 ```bash
-git checkout -b feat/faster-resolution
+git checkout -b feat/pr-regression-demo
 ```
 
 Edit `agents/support_agent.py` so enterprise human-review path calls `unsafe_auto_close(...)`.
+Make sure you also import `unsafe_auto_close` from `agents.support_tools`.
+
+Before committing, verify that this branch is actually regressing:
+
+```bash
+python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
+```
+
+Expected: FAIL (`exit 1`).
 
 ```bash
 git add agents/support_agent.py
