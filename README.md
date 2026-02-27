@@ -81,6 +81,9 @@ python -m trajectly report --pr-comment > trajectly_pr_comment.md
 
 The workflow uploads `.trajectly/**` artifacts and posts/updates a PR comment.
 
+To make Trajectly checks truly block merges, configure GitHub branch protection (or rulesets)
+and require the `Trajectly Agent Regression Tests` check on `main`.
+
 ## Full walkthrough
 
 See [TUTORIAL.md](TUTORIAL.md) for the full branch/PR regression and fix loop.

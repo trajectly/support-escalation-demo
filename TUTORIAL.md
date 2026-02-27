@@ -152,6 +152,17 @@ gh pr checks --watch
 
 Expected: Trajectly workflow fails with `CONTRACT_TOOL_DENIED` and witness details.
 
+If you do not see a PR-triggered run, verify explicitly:
+
+```bash
+gh run list --event pull_request --limit 5
+```
+
+If this list is empty:
+
+- ensure Actions are enabled for the repo (`Settings -> Actions`)
+- ensure the PR target branch contains `.github/workflows/trajectly.yml`
+
 ### 8.3 Fix PR and verify green
 
 Restore `escalate_to_human(...)` in `agents/support_agent.py`, then:
@@ -165,6 +176,18 @@ gh pr checks --watch
 ```
 
 Expected: CI turns green.
+
+## Step 8.4 Enforce merge blocking (required for real gating)
+
+For Trajectly to **block merges** when failing, you must configure required status checks on `main`:
+
+- Required check: `Trajectly Agent Regression Tests`
+- Require branch to be up to date before merging
+
+Without branch protection/rulesets, GitHub still allows manual merge even if checks fail.
+
+Note: Some GitHub plans do not support branch protection/rulesets on private repos.  
+If you hit that limitation, use a public demo repo or upgrade the plan to enforce blocking.
 
 ## Step 9: Optional local dashboard inspection
 
