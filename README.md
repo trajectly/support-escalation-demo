@@ -90,12 +90,13 @@ See [TUTORIAL.md](TUTORIAL.md) for the full branch/PR regression and fix loop.
 If you want visual trace and flow inspection, point the local Trajectly web viewer at this repo's generated reports:
 
 ```bash
-git clone https://github.com/aashmawy/trajectly-cloud-web.git
-cd trajectly-cloud-web
+git clone https://github.com/trajectly/trajectly-dashboard-local.git
+cd trajectly-dashboard-local
 npm install
 
-cp ../support-escalation-demo/.trajectly/reports/latest.json public/data/real/latest.json
-cp ../support-escalation-demo/.trajectly/reports/trt-support-agent.json public/data/real/reports/
+SUPPORT_DEMO_DIR="/absolute/path/to/support-escalation-demo"
+cp "$SUPPORT_DEMO_DIR/.trajectly/reports/latest.json" public/data/real/latest.json
+cp "$SUPPORT_DEMO_DIR/.trajectly/reports/trt-support-agent.json" public/data/real/reports/
 
 npm run dev
 ```

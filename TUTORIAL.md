@@ -91,6 +91,12 @@ git add agents/support_agent.py
 git commit -m "perf: reduce support escalation latency"
 ```
 
+If your environment injects commit trailers and you see `unknown option 'trailer'`, use:
+
+```bash
+/usr/local/bin/git -c "trailer.ifexists=doNothing" commit -m "perf: reduce support escalation latency"
+```
+
 ### 5.2 Observe local and CI failure
 
 ```bash
@@ -126,17 +132,14 @@ python -m trajectly baseline update specs/trt-support-agent-baseline.agent.yaml
 
 Use this only with review sign-off in production teams.
 
-## Step 8: Publish repo and run CI/PR loop on GitHub
+## Step 8: Optional - publish your own copy and run CI/PR loop on GitHub
 
-### 8.1 Create private repo and push main
+If you cloned this demo repo, do **not** run `git init` again.  
+Instead, create your own private copy by attaching a new origin remote:
 
 ```bash
-git init
-git checkout -b main
-git add .
-git commit -m "feat: add trajectly support escalation demo"
-
-gh repo create trajectly/support-escalation-demo --private --source=. --remote=origin --push
+git remote rename origin upstream
+gh repo create <your-org>/support-escalation-demo --private --source=. --remote=origin --push
 ```
 
 ### 8.2 Create a subtle-regression PR
@@ -175,12 +178,13 @@ Expected: CI turns green.
 ## Step 9: Optional local dashboard inspection
 
 ```bash
-git clone https://github.com/aashmawy/trajectly-cloud-web.git
-cd trajectly-cloud-web
+git clone https://github.com/trajectly/trajectly-dashboard-local.git
+cd trajectly-dashboard-local
 npm install
 
-cp ../support-escalation-demo/.trajectly/reports/latest.json public/data/real/latest.json
-cp ../support-escalation-demo/.trajectly/reports/trt-support-agent.json public/data/real/reports/
+SUPPORT_DEMO_DIR="/absolute/path/to/support-escalation-demo"
+cp "$SUPPORT_DEMO_DIR/.trajectly/reports/latest.json" public/data/real/latest.json
+cp "$SUPPORT_DEMO_DIR/.trajectly/reports/trt-support-agent.json" public/data/real/reports/
 npm run dev
 ```
 
