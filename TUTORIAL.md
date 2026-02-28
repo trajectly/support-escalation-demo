@@ -52,6 +52,12 @@ cd ../support-escalation-demo
 You now have two sibling directories. The dashboard reads Trajectly's JSON
 report files -- no cloud services, no login required.
 
+Configure the dashboard once so it reads this repo's reports directly:
+
+```bash
+printf "VITE_DATA_DIR=%s/.trajectly/reports\n" "$(pwd)" > ../trajectly-dashboard-local/.env.local
+```
+
 ---
 
 ## Step 1: Initialize and record baseline
@@ -80,13 +86,9 @@ Expected: `PASS` (exit code `0`).
 
 ## Step 2: View baseline in dashboard
 
-Copy reports into the dashboard and start it:
+Start the dashboard:
 
 ```bash
-cp .trajectly/reports/latest.json ../trajectly-dashboard-local/public/data/real/latest.json
-mkdir -p ../trajectly-dashboard-local/public/data/real/reports
-cp .trajectly/reports/trt-support-agent.json ../trajectly-dashboard-local/public/data/real/reports/
-
 cd ../trajectly-dashboard-local && npm run dev &
 cd ../support-escalation-demo
 ```
@@ -133,11 +135,6 @@ Expected: `FAIL` (exit code `1`) with violations such as:
 ---
 
 ## Step 4: View the regression in dashboard
-
-```bash
-cp .trajectly/reports/latest.json ../trajectly-dashboard-local/public/data/real/latest.json
-cp .trajectly/reports/trt-support-agent.json ../trajectly-dashboard-local/public/data/real/reports/
-```
 
 Refresh **http://localhost:5173/dashboard**.
 
@@ -251,11 +248,6 @@ contract.
 
 ### View in dashboard
 
-```bash
-cp .trajectly/reports/latest.json ../trajectly-dashboard-local/public/data/real/latest.json
-cp .trajectly/reports/trt-support-agent.json ../trajectly-dashboard-local/public/data/real/reports/
-```
-
 Refresh the dashboard to confirm the regression is visible.
 
 ---
@@ -278,7 +270,7 @@ python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-ro
 
 Expected: `PASS` (exit code `0`).
 
-Copy reports to dashboard and confirm the status returns to green.
+Refresh the dashboard and confirm the status returns to green.
 
 ---
 

@@ -34,6 +34,12 @@ You now have two sibling directories: `support-escalation-demo/` and
 `trajectly-dashboard-local/`. The dashboard reads JSON report files that
 Trajectly generates -- no cloud services, no login.
 
+Configure the dashboard once to read this repo's reports directly:
+
+```bash
+printf "VITE_DATA_DIR=%s/.trajectly/reports\n" "$(pwd)" > ../trajectly-dashboard-local/.env.local
+```
+
 ## 3. Record baseline and view in dashboard
 
 ```bash
@@ -44,13 +50,9 @@ python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-ro
 
 Expected: `PASS` (exit code `0`).
 
-Now copy the reports into the dashboard and start it:
+Start the dashboard:
 
 ```bash
-cp .trajectly/reports/latest.json ../trajectly-dashboard-local/public/data/real/latest.json
-mkdir -p ../trajectly-dashboard-local/public/data/real/reports
-cp .trajectly/reports/trt-support-agent.json ../trajectly-dashboard-local/public/data/real/reports/
-
 cd ../trajectly-dashboard-local && npm run dev &
 cd ../support-escalation-demo
 ```
@@ -72,13 +74,6 @@ python -m trajectly run specs/trt-support-agent-regression.agent.yaml --project-
 ```
 
 Expected: `FAIL` (exit code `1`).
-
-Copy the failing reports into the dashboard:
-
-```bash
-cp .trajectly/reports/latest.json ../trajectly-dashboard-local/public/data/real/latest.json
-cp .trajectly/reports/trt-support-agent.json ../trajectly-dashboard-local/public/data/real/reports/
-```
 
 Refresh `http://localhost:5173/dashboard`. Now you should see:
 
