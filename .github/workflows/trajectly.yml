@@ -20,20 +20,17 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Trajectly
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install trajectly
+          python -m pip install -r requirements.txt
 
       - name: Run Trajectly spec
         id: trt_run
+        continue-on-error: true
         run: |
-          set +e
+          python -m trajectly init
           python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
-          code=$?
-          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
-          set -e
-          exit 0
 
       - name: Generate PR comment markdown
         if: always()
@@ -45,6 +42,7 @@ jobs:
         with:
           name: trajectly-artifacts
           path: .trajectly/**
+          include-hidden-files: true
 
       - name: Post or update PR comment
         if: always() && github.event_name == 'pull_request'
@@ -83,6 +81,8 @@ jobs:
       - name: Enforce Trajectly verdict
         if: always()
         run: |
-          code="${{ steps.trt_run.outputs.exit_code }}"
-          echo "Trajectly exit code: $code"
-          exit "$code"
+          if [ "${{ steps.trt_run.outcome }}" != "success" ]; then
+            echo "Trajectly detected a regression (step outcome: ${{ steps.trt_run.outcome }})."
+            exit 1
+          fi
+          echo "Trajectly: all checks passed."

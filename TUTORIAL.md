@@ -1,20 +1,34 @@
 # Tutorial: End-to-End Trajectly PR Regression Workflow
 
-This tutorial demonstrates how Trajectly works as a deterministic regression gate for AI agents.
+This tutorial walks through every Trajectly feature using a real support
+escalation agent. By the end you will have:
 
-## What Trajectly is doing under the hood
+- Recorded a behavioral baseline
+- Viewed it in the local dashboard
+- Introduced a subtle regression and watched Trajectly catch it
+- Used report/repro/shrink to understand and minimize the failure
+- Simulated the exact PR workflow that Trajectly gates in CI
+- Fixed the regression and turned CI green
+
+## What Trajectly does under the hood
 
 For each run, Trajectly:
 
 1. Captures normalized trace events (`tool_called`, `llm_called`, etc.).
-2. Extracts the tool-call skeleton.
-3. Checks contracts (allow/deny, sequence, budget).
-4. Checks behavioral refinement against baseline.
-5. Returns PASS/FAIL with a witness step and reproducible artifacts.
+2. Extracts the tool-call skeleton (ordered list of tool names).
+3. Checks contracts (allow/deny lists, required sequences, budget limits).
+4. Checks behavioral refinement against the recorded baseline.
+5. Returns PASS/FAIL with the witness step (earliest divergence) and
+   reproducible artifacts.
 
-The key value is that this is deterministic and CI-safe.
+The key: this is **deterministic** and **CI-safe**. Same code + same fixtures =
+same verdict. Always.
 
-## Step 0: Environment setup
+---
+
+## Step 0: Environment and dashboard setup
+
+### 0.1 Python environment
 
 ```bash
 python3.11 -m venv .venv
@@ -23,6 +37,23 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
+### 0.2 Local dashboard
+
+Set up the dashboard now so you can visualize results throughout the tutorial.
+
+```bash
+cd ..
+git clone https://github.com/trajectly/trajectly-dashboard-local.git
+cd trajectly-dashboard-local
+npm install
+cd ../support-escalation-demo
+```
+
+You now have two sibling directories. The dashboard reads Trajectly's JSON
+report files -- no cloud services, no login required.
+
+---
+
 ## Step 1: Initialize and record baseline
 
 ```bash
@@ -30,13 +61,14 @@ python -m trajectly init
 python -m trajectly record specs/trt-support-agent-baseline.agent.yaml --project-root .
 ```
 
-Notes:
+This executes `agents/support_agent.py`, captures every tool call and LLM
+response, and stores the trace as the behavioral baseline in `.trajectly/baselines/`.
+Fixtures (deterministic replay data) are saved to `.trajectly/fixtures/`.
 
-- This records the baseline trace and fixtures.
-- If `OPENAI_API_KEY` and `TRAJECTLY_DEMO_USE_OPENAI=1` are set, it records live OpenAI outputs.
-- If not set, it records a deterministic mock provider output.
+If `OPENAI_API_KEY` and `TRAJECTLY_DEMO_USE_OPENAI=1` are set, live OpenAI
+responses are recorded. Otherwise a deterministic mock is used.
 
-## Step 2: Verify baseline passes
+### Verify baseline passes
 
 ```bash
 python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
@@ -44,38 +76,144 @@ python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-ro
 
 Expected: `PASS` (exit code `0`).
 
-## Step 3: Run intentionally regressed variant
+---
+
+## Step 2: View baseline in dashboard
+
+Copy reports into the dashboard and start it:
+
+```bash
+cp .trajectly/reports/latest.json ../trajectly-dashboard-local/public/data/real/latest.json
+mkdir -p ../trajectly-dashboard-local/public/data/real/reports
+cp .trajectly/reports/trt-support-agent.json ../trajectly-dashboard-local/public/data/real/reports/
+
+cd ../trajectly-dashboard-local && npm run dev &
+cd ../support-escalation-demo
+```
+
+Open **http://localhost:5173/dashboard**.
+
+What you see:
+
+- **Support Escalation Demo Agent** -- status **PASS**
+- **Agent Flow Graph**: `fetch_ticket` -> `check_entitlements` -> LLM call -> `escalate_to_human` (all green nodes)
+- **Trace timeline**: every event in execution order with millisecond timing
+- **Contract summary**: all checks passed (tool allow/deny, sequence, budget)
+
+This is the behavioral fingerprint Trajectly records. Any future run that
+deviates from this trace structure will be caught.
+
+---
+
+## Step 3: Run the intentionally regressed variant
+
+The repo includes a second agent file (`agents/support_agent_regression.py`)
+that contains a subtle one-line business rule change:
+
+```python
+# In support_agent_regression.py -- this line overrides escalation:
+if policy["max_auto_credit_usd"] >= 100:
+    action = "resolve"
+```
+
+It looks like a harmless SLA optimization, but it silently bypasses mandatory
+human review for enterprise billing disputes.
+
+Run it:
 
 ```bash
 python -m trajectly run specs/trt-support-agent-regression.agent.yaml --project-root .
 ```
 
-Expected: `FAIL` (exit code `1`) due to:
+Expected: `FAIL` (exit code `1`) with violations such as:
 
-- `REFINEMENT_BASELINE_CALL_MISSING` (missing expected escalation path)
-- `CONTRACT_SEQUENCE_REQUIRED_MISSING` / `CONTRACT_SEQUENCE_REQUIRE_BEFORE_VIOLATED`
+- `REFINEMENT_BASELINE_CALL_MISSING` -- the baseline called `escalate_to_human` but the current run did not
+- `CONTRACT_SEQUENCE_REQUIRED_MISSING` -- the required tool sequence was not followed
 
-## Step 4: Understand and reproduce failure
+---
+
+## Step 4: View the regression in dashboard
+
+```bash
+cp .trajectly/reports/latest.json ../trajectly-dashboard-local/public/data/real/latest.json
+cp .trajectly/reports/trt-support-agent.json ../trajectly-dashboard-local/public/data/real/reports/
+```
+
+Refresh **http://localhost:5173/dashboard**.
+
+What changed:
+
+- **Status: FAIL** with the witness index pointing to the exact step where behavior diverged
+- **Agent Flow Graph**: `escalate_to_human` node is now highlighted as **missing/violated**
+- **Violation details**: the specific contract and refinement failures
+- Compare this with Step 2's healthy graph -- the visual diff is immediate
+
+---
+
+## Step 5: CLI deep dive -- report, repro, shrink
+
+### report
 
 ```bash
 python -m trajectly report
+```
+
+Prints the human-readable verdict: which spec failed, violation code, witness
+index, and a copy-paste repro command. This is what CI posts as a PR comment.
+
+### repro
+
+```bash
 python -m trajectly repro
+```
+
+Re-runs the exact failing trace from fixtures. Deterministic, offline, same
+result every time. Share this command with a teammate and they get the same
+failure on their machine.
+
+### shrink
+
+```bash
 python -m trajectly shrink
 ```
 
-What you should see:
+Minimizes the trace to the shortest prefix that still triggers the violation.
+Instead of reading 12 events, you see the 4-5 that matter.
 
-- Witness index (first failing step)
-- Primary violation code/message
-- Deterministic repro command
-- Minimal failing trace prefix after shrink
+### Generated files reference
 
-## Step 5: Simulate regression locally (pre-PR)
+| File | Contents |
+|------|----------|
+| `.trajectly/reports/latest.json` | Machine-readable roll-up of all specs |
+| `.trajectly/reports/trt-support-agent.json` | Full report: skeletons, violations, witness, repro |
+| `.trajectly/reports/trt-support-agent.md` | Human-readable markdown version |
+| `.trajectly/baselines/trt-support-agent.jsonl` | The recorded baseline trace (one JSON event per line) |
+| `.trajectly/fixtures/trt-support-agent.json` | Recorded LLM/tool outputs for deterministic replay |
 
-The CI workflow gates on `specs/trt-support-agent-baseline.agent.yaml`.
-In real PRs, you do not swap specs; you change agent code and rerun the same baseline spec.
+The JSON report contains fields not shown in the dashboard:
+- `baseline_skeleton` / `current_skeleton` -- exact ordered tool-call lists
+- `violations[].witness_index` -- numeric event index of the first failure
+- `violations[].code` / `violations[].message` -- machine-parseable identifiers
+- `repro_command` -- exact CLI command to reproduce
 
-Edit `agents/support_agent.py` — add a "fast-track" rule after the `choose_resolution_action` call:
+---
+
+## Step 6: Simulate regression on baseline code (the PR scenario)
+
+In real CI, the workflow gates on the **baseline spec**
+(`specs/trt-support-agent-baseline.agent.yaml`). You do not swap specs; you
+change the agent code and rerun the same baseline spec.
+
+### What to change
+
+Open `agents/support_agent.py`. Find these lines:
+
+```python
+    action = choose_resolution_action(summary, bool(policy["requires_human_review"]))
+    if action == "escalate":
+```
+
+Replace them with:
 
 ```python
     action = choose_resolution_action(summary, bool(policy["requires_human_review"]))
@@ -87,63 +225,103 @@ Edit `agents/support_agent.py` — add a "fast-track" rule after the `choose_res
     if action == "escalate":
 ```
 
-This looks like a harmless SLA optimization but silently bypasses mandatory human
-review for enterprise billing disputes — exactly the kind of "looks safe" change
-that passes code review and static checks but breaks behavioral policy.
+You added two lines: a comment and an `if` statement that overrides the
+escalation decision when the auto-credit budget is >= $100.
 
-Then verify local failure:
+This change:
+- Looks like a harmless SLA optimization in code review
+- Passes linting and static analysis
+- Would not be flagged by AI code review tools
 
-```bash
-python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
-python -m trajectly report
-```
-
-Expected: FAIL (`exit 1`) with refinement/sequence violations
-(for example `REFINEMENT_BASELINE_CALL_MISSING` and `CONTRACT_SEQUENCE_REQUIRED_MISSING`).
-
-## Step 6: Fix via Trajectly loop
-
-Restore the original escalation flow in `agents/support_agent.py`:
-
-- remove the fast-track override (`if policy["max_auto_credit_usd"] >= 100: action = "resolve"`).
-
-Validate:
+### Verify it fails
 
 ```bash
 python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
+```
+
+Expected: `FAIL` (exit code `1`).
+
+```bash
 python -m trajectly report
 ```
 
-Expected: pass.
+You should see the same violations as Step 3: the agent now calls
+`send_resolution` instead of `escalate_to_human`, breaking the behavioral
+contract.
 
-## Step 7: Intentional behavior changes
+### View in dashboard
 
-If you intentionally change behavior and want to accept it:
+```bash
+cp .trajectly/reports/latest.json ../trajectly-dashboard-local/public/data/real/latest.json
+cp .trajectly/reports/trt-support-agent.json ../trajectly-dashboard-local/public/data/real/reports/
+```
+
+Refresh the dashboard to confirm the regression is visible.
+
+---
+
+## Step 7: Fix via Trajectly loop
+
+Remove the two lines you added in Step 6 so `agents/support_agent.py` looks
+like the original:
+
+```python
+    action = choose_resolution_action(summary, bool(policy["requires_human_review"]))
+    if action == "escalate":
+```
+
+Verify:
+
+```bash
+python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
+```
+
+Expected: `PASS` (exit code `0`).
+
+Copy reports to dashboard and confirm the status returns to green.
+
+---
+
+## Step 8: Intentional behavior changes
+
+If you intentionally change behavior and want to accept the new trace:
 
 ```bash
 python -m trajectly baseline update specs/trt-support-agent-baseline.agent.yaml
 ```
 
-Use this only with review sign-off in production teams.
+This re-records the baseline from the current agent code. Use this only with
+explicit review sign-off -- it permanently changes what Trajectly considers
+"correct" behavior.
 
-## Step 8: Optional - publish your own copy and run CI/PR loop on GitHub
+---
 
-If you cloned this demo repo, do **not** run `git init` again.  
-Instead, create your own private copy by attaching a new origin remote:
+## Step 9: CI/PR loop on GitHub
+
+### 9.1 Publish your own copy
+
+If you cloned this demo, do **not** `git init` again. Create a private copy:
 
 ```bash
 git remote rename origin upstream
 gh repo create <your-org>/support-escalation-demo --private --source=. --remote=origin --push
 ```
 
-### 8.2 Create a subtle-regression PR
+### 9.2 Create a subtle-regression PR
 
 ```bash
-REGRESSION_BRANCH="feat/pr-regression-demo-<your-handle>"
+REGRESSION_BRANCH="feat/pr-regression-demo-$(whoami)"
 git checkout -b "$REGRESSION_BRANCH"
 ```
 
-Edit `agents/support_agent.py` — add a fast-track override after `choose_resolution_action`:
+Edit `agents/support_agent.py` -- add the fast-track override. Find:
+
+```python
+    action = choose_resolution_action(summary, bool(policy["requires_human_review"]))
+    if action == "escalate":
+```
+
+Replace with:
 
 ```python
     action = choose_resolution_action(summary, bool(policy["requires_human_review"]))
@@ -155,42 +333,39 @@ Edit `agents/support_agent.py` — add a fast-track override after `choose_resol
     if action == "escalate":
 ```
 
-This looks like a harmless SLA optimization. It passes code review and static checks.
-
-Before committing, verify that this branch is actually regressing:
+Before pushing, confirm local failure:
 
 ```bash
 python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
 ```
 
-Expected: FAIL (`exit 1`).
+Expected: `FAIL` (exit code `1`).
+
+Commit and push:
 
 ```bash
 git add agents/support_agent.py
 git commit -m "perf: reduce queue latency for enterprise billing"
 git push -u origin "$REGRESSION_BRANCH"
 
-gh pr create --title "perf: reduce queue latency for enterprise billing" --body "Optimize support flow for faster resolution."
+gh pr create \
+  --title "perf: reduce queue latency for enterprise billing" \
+  --body "Optimize support flow for faster resolution."
+
 gh pr checks --watch
 ```
 
-Expected: Trajectly workflow fails with witness details and refinement/sequence violations
-(for example `REFINEMENT_BASELINE_CALL_MISSING`).
+Expected: the **Trajectly Agent Regression Tests** check fails with
+refinement/sequence violations.
 
-If you do not see a PR-triggered run, verify explicitly:
+If you do not see a triggered run:
+- Ensure Actions are enabled (`Settings -> Actions -> General`)
+- Ensure the PR targets `main` and `main` contains `.github/workflows/trajectly.yml`
 
-```bash
-gh run list --event pull_request --limit 5
-```
+### 9.3 Fix and verify green
 
-If this list is empty:
-
-- ensure Actions are enabled for the repo (`Settings -> Actions`)
-- ensure the PR target branch contains `.github/workflows/trajectly.yml`
-
-### 8.3 Fix PR and verify green
-
-Remove the fast-track override from `agents/support_agent.py` (delete the two lines starting with `# Fast-track` and `if policy["max_auto_credit_usd"]`), then:
+Remove the fast-track override from `agents/support_agent.py` (delete the
+comment line and the `if policy["max_auto_credit_usd"]` line), then:
 
 ```bash
 python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
@@ -202,45 +377,30 @@ gh pr checks --watch
 
 Expected: CI turns green.
 
-## Step 8.4 Enforce merge blocking (required for real gating)
+### 9.4 Enforce merge blocking (required for real gating)
 
-For Trajectly to **block merges** when failing, you must configure required status checks on `main`:
+For Trajectly to **block merges**, configure required status checks on `main`:
 
 - Required check: `Trajectly Agent Regression Tests`
 - Require branch to be up to date before merging
 
-Without branch protection/rulesets, GitHub still allows manual merge even if checks fail.
+Without branch protection/rulesets, GitHub allows manual merge even when
+checks fail.
 
-Note: Some GitHub plans do not support branch protection/rulesets on private repos.  
-If you hit that limitation, use a public demo repo or upgrade the plan to enforce blocking.
+Note: some GitHub plans do not support branch protection on private repos.
+Use a public repo or upgrade the plan to enforce blocking.
 
-## Step 9: Optional local dashboard inspection
+---
 
-```bash
-# Generate a failing latest report so the dashboard shows the regression state:
-python -m trajectly run specs/trt-support-agent-regression.agent.yaml --project-root . || true
+## CI workflow reference
 
-git clone https://github.com/trajectly/trajectly-dashboard-local.git
-cd trajectly-dashboard-local
-npm install
+The workflow in `.github/workflows/trajectly.yml`:
 
-SUPPORT_DEMO_DIR="/absolute/path/to/support-escalation-demo"
-cp "$SUPPORT_DEMO_DIR/.trajectly/reports/latest.json" public/data/real/latest.json
-cp "$SUPPORT_DEMO_DIR/.trajectly/reports/trt-support-agent.json" public/data/real/reports/
-npm run dev
-```
+1. Installs Trajectly and project dependencies
+2. Runs `trajectly init` + `trajectly run` against the baseline spec
+3. Generates a PR comment with the verdict
+4. Uploads `.trajectly/` artifacts
+5. Fails the job if Trajectly detected a regression
 
-Open `http://localhost:5173/dashboard` to inspect flow graph, witness step, and repro command.
-Expected: `trt-support-agent` appears as a failing regression run.
-
-## CI snippet reference
-
-The workflow in `.github/workflows/trajectly.yml` is intentionally thin:
-
-- install Trajectly
-- run spec
-- generate report
-- upload artifacts
-- fail job on Trajectly exit code
-
-This mirrors Trajectly's product philosophy: the CLI is the product, CI wrappers are transport.
+This mirrors Trajectly's philosophy: the CLI is the product, CI wrappers are
+transport.
