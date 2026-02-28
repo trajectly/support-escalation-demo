@@ -130,7 +130,8 @@ python -m trajectly run specs/trt-support-agent-regression.agent.yaml --project-
 Expected: `FAIL` (exit code `1`) with violations such as:
 
 - `REFINEMENT_BASELINE_CALL_MISSING` -- the baseline called `escalate_to_human` but the current run did not
-- `CONTRACT_SEQUENCE_REQUIRED_MISSING` -- the required tool sequence was not followed
+- `REFINEMENT_EXTRA_TOOL_CALL` -- current run added a non-baseline tool call
+- `REFINEMENT_NEW_TOOL_NAME_FORBIDDEN` -- current run introduced a tool name outside baseline policy
 
 ---
 
@@ -189,8 +190,8 @@ Instead of reading 12 events, you see the 4-5 that matter.
 
 The JSON report contains fields not shown in the dashboard:
 - `baseline_skeleton` / `current_skeleton` -- exact ordered tool-call lists
-- `violations[].witness_index` -- numeric event index of the first failure
-- `violations[].code` / `violations[].message` -- machine-parseable identifiers
+- `all_violations_at_witness[]` -- machine-parseable TRT violation set at witness
+- `primary_violation` / `witness_index` -- root cause and earliest failing event
 - `repro_command` -- exact CLI command to reproduce
 
 ---
@@ -352,7 +353,7 @@ gh pr checks --watch
 ```
 
 Expected: the **Trajectly Agent Regression Tests** check fails with
-refinement/sequence violations.
+refinement violations.
 
 If you do not see a triggered run:
 - Ensure Actions are enabled (`Settings -> Actions -> General`)
@@ -418,7 +419,7 @@ targeting the `main` branch and add a "Require status checks" rule with
 The workflow in `.github/workflows/trajectly.yml`:
 
 1. Installs Trajectly and project dependencies
-2. Runs `trajectly init` + `trajectly run` against the baseline spec
+2. Runs `python -m trajectly init` + `python -m trajectly run` against the baseline spec
 3. Generates a PR comment with the verdict
 4. Uploads `.trajectly/` artifacts
 5. Fails the job if Trajectly detected a regression

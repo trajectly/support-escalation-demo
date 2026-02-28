@@ -79,7 +79,10 @@ Refresh `http://localhost:5173/dashboard`. Now you should see:
 
 - **Status: FAIL** with a witness index pointing to the exact step where behavior diverged
 - The **Agent Flow Graph** highlights the violation: `escalate_to_human` is missing
-- The **violation details** show `REFINEMENT_BASELINE_CALL_MISSING` and/or `CONTRACT_SEQUENCE_REQUIRED_MISSING`
+- The **violation details** include refinement failures such as:
+  - `REFINEMENT_BASELINE_CALL_MISSING`
+  - `REFINEMENT_EXTRA_TOOL_CALL`
+  - `REFINEMENT_NEW_TOOL_NAME_FORBIDDEN`
 
 The regression agent added a single "fast-track" business rule that overrides
 the escalation decision. It looks like a harmless SLA optimization in code review,
@@ -122,8 +125,8 @@ Trajectly writes detailed artifacts to `.trajectly/reports/`:
 
 The JSON report contains fields the dashboard does not surface, including:
 - `baseline_skeleton` and `current_skeleton` -- the exact ordered tool-call lists
-- `violations[].witness_index` -- the numeric event index of the first failure
-- `violations[].code` and `violations[].message` -- machine-parseable violation identifiers
+- `all_violations_at_witness[]` -- machine-parseable TRT violation set at witness
+- `primary_violation` and `witness_index` -- root cause + earliest failing event
 - `repro_command` -- the exact CLI command to reproduce the failure
 
 These are useful for scripting, CI integrations, and detailed debugging.
@@ -134,8 +137,8 @@ The included `.github/workflows/trajectly.yml` runs on every push to `main`
 and every pull request targeting `main`. It:
 
 1. Installs Trajectly
-2. Runs `trajectly run` against the baseline spec
-3. Generates a PR comment with the verdict
+2. Runs `python -m trajectly run` against the baseline spec
+3. Generates a PR comment with `python -m trajectly report --pr-comment`
 4. Uploads `.trajectly/` artifacts
 5. Fails the job if Trajectly detected a regression
 
