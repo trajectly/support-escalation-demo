@@ -28,7 +28,14 @@ same verdict. Always.
 
 ## Step 0: Environment and dashboard setup
 
-### 0.1 Python environment
+### 0.1 Clone the demo repo
+
+```bash
+git clone https://github.com/trajectly/support-escalation-demo.git
+cd support-escalation-demo
+```
+
+### 0.2 Python environment
 
 ```bash
 python3.11 -m venv .venv
@@ -37,7 +44,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-### 0.2 Local dashboard
+### 0.3 Local dashboard
 
 Set up the dashboard now so you can visualize results throughout the tutorial.
 
@@ -283,9 +290,31 @@ If you intentionally change behavior and want to accept the new trace:
 python -m trajectly baseline update specs/trt-support-agent-baseline.agent.yaml
 ```
 
-This re-records the baseline from the current agent code. Use this only with
-explicit review sign-off -- it permanently changes what Trajectly considers
-"correct" behavior.
+This command re-records the baseline from current code and fixtures.
+
+Use baseline update only when the behavior change is deliberate and approved.
+Treat it as a contract change, not a quick fix for a failing check.
+
+Before updating:
+
+1. Confirm the change is intentional (product/policy decision, not a bug).
+2. Run `python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .`
+   and review why it fails.
+3. Run `python -m trajectly report` and inspect the witness + violations.
+4. Verify in the dashboard that the new flow is the behavior you want.
+
+After updating:
+
+```bash
+python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
+python -m trajectly report
+```
+
+Expected after an intentional update: baseline spec returns `PASS` with the new
+approved behavior.
+
+In PR review, call out that baseline files changed intentionally
+(`.trajectly/baselines/*` and related metadata) and reference the approval.
 
 ---
 
