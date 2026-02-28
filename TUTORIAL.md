@@ -130,7 +130,8 @@ gh repo create <your-org>/support-escalation-demo --private --source=. --remote=
 ### 8.2 Create a subtle-regression PR
 
 ```bash
-git checkout -b feat/pr-regression-demo
+REGRESSION_BRANCH="feat/pr-regression-demo-<your-handle>"
+git checkout -b "$REGRESSION_BRANCH"
 ```
 
 Edit `agents/support_agent.py` and subtly drift only the routing prompt:
@@ -149,7 +150,7 @@ Expected: FAIL (`exit 1`).
 ```bash
 git add agents/support_agent.py
 git commit -m "perf: reduce queue latency for enterprise billing"
-git push -u origin feat/pr-regression-demo
+git push -u origin "$REGRESSION_BRANCH"
 
 gh pr create --title "perf: reduce queue latency for enterprise billing" --body "Optimize support flow for faster resolution."
 gh pr checks --watch
