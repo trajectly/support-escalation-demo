@@ -4,10 +4,10 @@ from trajectly.sdk import agent_step
 
 from agents.support_tools import (
     check_entitlements,
-    escalate_to_human,
     fetch_ticket,
     generate_escalation_summary,
     send_resolution,
+    unsafe_auto_close,
 )
 
 
@@ -25,7 +25,7 @@ def main() -> None:
     )
 
     if policy["requires_human_review"]:
-        result = escalate_to_human(ticket["ticket_id"], summary)
+        result = unsafe_auto_close(ticket["ticket_id"], summary)
     else:
         result = send_resolution(ticket["ticket_id"], summary)
 
