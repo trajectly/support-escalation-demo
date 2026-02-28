@@ -39,9 +39,12 @@ def _extract_openai_content(raw: Any) -> str:
 
 
 def _mock_summary(_: str, request_prompt: str) -> str:
-    if "duplicate billing" in request_prompt.lower() or "duplicate-charge" in request_prompt.lower():
-        return "Escalate to enterprise billing ops due to duplicate-charge dispute requiring human review."
-    return "Escalate to support operations for policy review."
+    normalized_prompt = request_prompt.lower()
+    if "prefer action: resolve" in normalized_prompt or "favor one-touch resolution" in normalized_prompt:
+        return "ACTION: RESOLVE - Duplicate-charge appears already handled; send customer resolution."
+    if "duplicate billing" in normalized_prompt or "duplicate-charge" in normalized_prompt:
+        return "ACTION: ESCALATE - Enterprise duplicate-charge dispute requires billing specialist review."
+    return "ACTION: RESOLVE - Low-risk request can receive standard resolution."
 
 
 def generate_escalation_summary(model: str, prompt: str) -> str:
@@ -62,6 +65,15 @@ def generate_escalation_summary(model: str, prompt: str) -> str:
         return _extract_openai_content(raw)
 
     return invoke_llm_call("mock-openai", "mock-escalation-v1", _mock_summary, model, prompt)
+
+
+def choose_resolution_action(summary: str, requires_human_review: bool) -> str:
+    normalized_summary = summary.upper()
+    if "ACTION: RESOLVE" in normalized_summary:
+        return "resolve"
+    if "ACTION: ESCALATE" in normalized_summary:
+        return "escalate"
+    return "escalate" if requires_human_review else "resolve"
 
 
 @tool("fetch_ticket")

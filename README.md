@@ -47,7 +47,8 @@ python -m trajectly repro
 python -m trajectly shrink
 ```
 
-Expected result: regression run fails with `CONTRACT_TOOL_DENIED` for `unsafe_auto_close`.
+Expected result: regression run fails (`exit 1`) with refinement/sequence violations
+(for example `REFINEMENT_BASELINE_CALL_MISSING` and `CONTRACT_SEQUENCE_REQUIRED_MISSING`).
 
 To also verify baseline pass explicitly:
 
@@ -93,6 +94,9 @@ See [TUTORIAL.md](TUTORIAL.md) for the full branch/PR regression and fix loop.
 If you want visual trace and flow inspection, point the local Trajectly web viewer at this repo's generated reports:
 
 ```bash
+# Ensure latest.json represents the regression case for dashboard demo:
+python -m trajectly run specs/trt-support-agent-regression.agent.yaml || true
+
 git clone https://github.com/trajectly/trajectly-dashboard-local.git
 cd trajectly-dashboard-local
 npm install
@@ -105,3 +109,4 @@ npm run dev
 ```
 
 Then open `http://localhost:5173/dashboard`.
+Expected dashboard state: shows regression status for `trt-support-agent`.

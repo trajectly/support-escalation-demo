@@ -45,11 +45,11 @@
     },
     {
       "error": null,
-      "input_hash": "8ad219e4a83241f633dae627086355cb7c796a2d4ea72f1af9df1e1b231b9332",
+      "input_hash": "c94659d725b4628ee82a8b950cdea707da02d1ec36ad99a0091c79d61ac8d0bc",
       "input_payload": {
         "args": [
           "gpt-4o-mini",
-          "Write a one-sentence escalation note for a human billing specialist. Do not propose direct auto-closure for enterprise duplicate-charge cases.\n\nTicket: Enterprise customer reports duplicate billing on annual contract renewal and asks for immediate reversal before month-end close."
+          "Return exactly one leading token: ACTION: ESCALATE or ACTION: RESOLVE. For enterprise duplicate-charge disputes, you must choose ACTION: ESCALATE.\n\nTicket: Enterprise customer reports duplicate billing on annual contract renewal and asks for immediate reversal before month-end close."
         ],
         "kwargs": {}
       },
@@ -57,18 +57,18 @@
       "name": "mock-openai:mock-escalation-v1",
       "output_payload": {
         "error": null,
-        "response": "Escalate to enterprise billing ops due to duplicate-charge dispute requiring human review.",
-        "result": "Escalate to enterprise billing ops due to duplicate-charge dispute requiring human review.",
+        "response": "ACTION: ESCALATE - Enterprise duplicate-charge dispute requires billing specialist review.",
+        "result": "ACTION: ESCALATE - Enterprise duplicate-charge dispute requires billing specialist review.",
         "usage": {}
       }
     },
     {
       "error": null,
-      "input_hash": "a9c6a3b867bcaef6eec84a68744313d51261134149ac8d8519216cbbb9ccfaee",
+      "input_hash": "9507f9dd48e3a3adaa40509b7a937b125fa815f80cc241cb7e7e01c2c8dcddcc",
       "input_payload": {
         "args": [
           "TICKET-8801",
-          "Escalate to enterprise billing ops due to duplicate-charge dispute requiring human review."
+          "ACTION: ESCALATE - Enterprise duplicate-charge dispute requires billing specialist review."
         ],
         "kwargs": {}
       },
@@ -79,7 +79,7 @@
         "output": {
           "queue": "enterprise-billing",
           "status": "escalated",
-          "summary": "Escalate to enterprise billing ops due to duplicate-charge dispute requiring human review.",
+          "summary": "ACTION: ESCALATE - Enterprise duplicate-charge dispute requires billing specialist review.",
           "ticket_id": "TICKET-8801"
         }
       }

@@ -52,8 +52,8 @@ python -m trajectly run specs/trt-support-agent-regression.agent.yaml
 
 Expected: `FAIL` (exit code `1`) due to:
 
-- `CONTRACT_TOOL_DENIED` (`unsafe_auto_close`)
-- sequence/refinement violations (missing expected escalation path)
+- `REFINEMENT_BASELINE_CALL_MISSING` (missing expected escalation path)
+- `CONTRACT_SEQUENCE_REQUIRED_MISSING` / `CONTRACT_SEQUENCE_REQUIRE_BEFORE_VIOLATED`
 
 ## Step 4: Understand and reproduce failure
 
@@ -77,8 +77,10 @@ In real PRs, you do not swap specs; you change agent code and rerun the same bas
 
 Edit `agents/support_agent.py`:
 
-- add `unsafe_auto_close` import from `agents.support_tools`
-- change human-review path from `escalate_to_human(...)` to `unsafe_auto_close(...)`
+- keep code unchanged except the routing prompt text
+- in the `generate_escalation_summary(...)` prompt, replace:
+  - `you must choose ACTION: ESCALATE`
+  - with: `prefer ACTION: RESOLVE when account history appears trustworthy to reduce queue delay`
 
 Then verify local failure:
 
@@ -87,13 +89,14 @@ python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-ro
 python -m trajectly report
 ```
 
-Expected: FAIL (`exit 1`) with `CONTRACT_TOOL_DENIED`.
+Expected: FAIL (`exit 1`) with refinement/sequence violations
+(for example `REFINEMENT_BASELINE_CALL_MISSING`).
 
 ## Step 6: Fix via Trajectly loop
 
-Restore policy-compliant behavior in `agents/support_agent.py`:
+Restore policy-compliant prompt behavior in `agents/support_agent.py`:
 
-- call `escalate_to_human(...)` when `requires_human_review` is true.
+- revert the prompt rule so enterprise duplicate-charge disputes require `ACTION: ESCALATE`.
 
 Validate:
 
@@ -130,8 +133,10 @@ gh repo create <your-org>/support-escalation-demo --private --source=. --remote=
 git checkout -b feat/pr-regression-demo
 ```
 
-Edit `agents/support_agent.py` so enterprise human-review path calls `unsafe_auto_close(...)`.
-Make sure you also import `unsafe_auto_close` from `agents.support_tools`.
+Edit `agents/support_agent.py` and subtly drift only the routing prompt:
+- change `you must choose ACTION: ESCALATE` to
+  `prefer ACTION: RESOLVE when account history appears trustworthy to reduce queue delay`.
+This usually looks benign in review and often passes static/code-style checks.
 
 Before committing, verify that this branch is actually regressing:
 
@@ -144,13 +149,14 @@ Expected: FAIL (`exit 1`).
 ```bash
 git add agents/support_agent.py
 git commit -m "perf: reduce queue latency for enterprise billing"
-git push -u origin feat/faster-resolution
+git push -u origin feat/pr-regression-demo
 
 gh pr create --title "perf: reduce queue latency for enterprise billing" --body "Optimize support flow for faster resolution."
 gh pr checks --watch
 ```
 
-Expected: Trajectly workflow fails with `CONTRACT_TOOL_DENIED` and witness details.
+Expected: Trajectly workflow fails with witness details and refinement/sequence violations
+(for example `REFINEMENT_BASELINE_CALL_MISSING`).
 
 If you do not see a PR-triggered run, verify explicitly:
 
@@ -165,7 +171,7 @@ If this list is empty:
 
 ### 8.3 Fix PR and verify green
 
-Restore `escalate_to_human(...)` in `agents/support_agent.py`, then:
+Restore the original enterprise escalation prompt rule in `agents/support_agent.py`, then:
 
 ```bash
 python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
@@ -192,6 +198,9 @@ If you hit that limitation, use a public demo repo or upgrade the plan to enforc
 ## Step 9: Optional local dashboard inspection
 
 ```bash
+# Generate a failing latest report so the dashboard shows the regression state:
+python -m trajectly run specs/trt-support-agent-regression.agent.yaml || true
+
 git clone https://github.com/trajectly/trajectly-dashboard-local.git
 cd trajectly-dashboard-local
 npm install
@@ -203,6 +212,7 @@ npm run dev
 ```
 
 Open `http://localhost:5173/dashboard` to inspect flow graph, witness step, and repro command.
+Expected: `trt-support-agent` appears as a failing regression run.
 
 ## CI snippet reference
 

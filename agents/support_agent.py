@@ -4,6 +4,7 @@ from trajectly.sdk import agent_step
 
 from agents.support_tools import (
     check_entitlements,
+    choose_resolution_action,
     escalate_to_human,
     fetch_ticket,
     generate_escalation_summary,
@@ -19,17 +20,18 @@ def main() -> None:
 
     summary = generate_escalation_summary(
         "gpt-4o-mini",
-        "Write a one-sentence escalation note for a human billing specialist. "
-        "Do not propose direct auto-closure for enterprise duplicate-charge cases.\n\n"
+        "Return exactly one leading token: ACTION: ESCALATE or ACTION: RESOLVE. "
+        "For enterprise duplicate-charge disputes, you must choose ACTION: ESCALATE.\n\n"
         f"Ticket: {ticket['content']}",
     )
 
-    if policy["requires_human_review"]:
+    action = choose_resolution_action(summary, bool(policy["requires_human_review"]))
+    if action == "escalate":
         result = escalate_to_human(ticket["ticket_id"], summary)
     else:
         result = send_resolution(ticket["ticket_id"], summary)
 
-    agent_step("done", {"policy": policy, "summary": summary, "result": result})
+    agent_step("done", {"policy": policy, "summary": summary, "action": action, "result": result})
 
 
 if __name__ == "__main__":
