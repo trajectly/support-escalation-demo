@@ -40,8 +40,8 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 
 python -m trajectly init
-python -m trajectly record specs/trt-support-agent-baseline.agent.yaml
-python -m trajectly run specs/trt-support-agent-regression.agent.yaml
+python -m trajectly record specs/trt-support-agent-baseline.agent.yaml --project-root .
+python -m trajectly run specs/trt-support-agent-regression.agent.yaml --project-root .
 python -m trajectly report
 python -m trajectly repro
 python -m trajectly shrink
@@ -53,7 +53,7 @@ Expected result: regression run fails (`exit 1`) with refinement/sequence violat
 To also verify baseline pass explicitly:
 
 ```bash
-python -m trajectly run specs/trt-support-agent-baseline.agent.yaml
+python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
 ```
 
 Expected result: PASS (exit code `0`).
@@ -66,7 +66,7 @@ If you want real OpenAI recording, set:
 ```bash
 export OPENAI_API_KEY="sk-..."
 export TRAJECTLY_DEMO_USE_OPENAI=1
-python -m trajectly record specs/trt-support-agent-baseline.agent.yaml
+python -m trajectly record specs/trt-support-agent-baseline.agent.yaml --project-root .
 ```
 
 `run` still replays deterministically from fixtures.
@@ -95,7 +95,7 @@ If you want visual trace and flow inspection, point the local Trajectly web view
 
 ```bash
 # Ensure latest.json represents the regression case for dashboard demo:
-python -m trajectly run specs/trt-support-agent-regression.agent.yaml || true
+python -m trajectly run specs/trt-support-agent-regression.agent.yaml --project-root . || true
 
 git clone https://github.com/trajectly/trajectly-dashboard-local.git
 cd trajectly-dashboard-local

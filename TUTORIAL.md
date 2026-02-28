@@ -27,7 +27,7 @@ python -m pip install -r requirements.txt
 
 ```bash
 python -m trajectly init
-python -m trajectly record specs/trt-support-agent-baseline.agent.yaml
+python -m trajectly record specs/trt-support-agent-baseline.agent.yaml --project-root .
 ```
 
 Notes:
@@ -39,7 +39,7 @@ Notes:
 ## Step 2: Verify baseline passes
 
 ```bash
-python -m trajectly run specs/trt-support-agent-baseline.agent.yaml
+python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
 ```
 
 Expected: `PASS` (exit code `0`).
@@ -47,7 +47,7 @@ Expected: `PASS` (exit code `0`).
 ## Step 3: Run intentionally regressed variant
 
 ```bash
-python -m trajectly run specs/trt-support-agent-regression.agent.yaml
+python -m trajectly run specs/trt-support-agent-regression.agent.yaml --project-root .
 ```
 
 Expected: `FAIL` (exit code `1`) due to:
@@ -200,7 +200,7 @@ If you hit that limitation, use a public demo repo or upgrade the plan to enforc
 
 ```bash
 # Generate a failing latest report so the dashboard shows the regression state:
-python -m trajectly run specs/trt-support-agent-regression.agent.yaml || true
+python -m trajectly run specs/trt-support-agent-regression.agent.yaml --project-root . || true
 
 git clone https://github.com/trajectly/trajectly-dashboard-local.git
 cd trajectly-dashboard-local
