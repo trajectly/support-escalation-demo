@@ -75,12 +75,21 @@ What you should see:
 The CI workflow gates on `specs/trt-support-agent-baseline.agent.yaml`.
 In real PRs, you do not swap specs; you change agent code and rerun the same baseline spec.
 
-Edit `agents/support_agent.py`:
+Edit `agents/support_agent.py` — add a "fast-track" rule after the `choose_resolution_action` call:
 
-- keep code unchanged except the routing prompt text
-- in the `generate_escalation_summary(...)` prompt, replace:
-  - `you must choose ACTION: ESCALATE`
-  - with: `prefer ACTION: RESOLVE when account history appears trustworthy to reduce queue delay`
+```python
+    action = choose_resolution_action(summary, bool(policy["requires_human_review"]))
+
+    # Fast-track: resolve directly when auto-credit budget covers the dispute
+    if policy["max_auto_credit_usd"] >= 100:
+        action = "resolve"
+
+    if action == "escalate":
+```
+
+This looks like a harmless SLA optimization but silently bypasses mandatory human
+review for enterprise billing disputes — exactly the kind of "looks safe" change
+that passes code review and static checks but breaks behavioral policy.
 
 Then verify local failure:
 
@@ -90,13 +99,13 @@ python -m trajectly report
 ```
 
 Expected: FAIL (`exit 1`) with refinement/sequence violations
-(for example `REFINEMENT_BASELINE_CALL_MISSING`).
+(for example `REFINEMENT_BASELINE_CALL_MISSING` and `CONTRACT_SEQUENCE_REQUIRED_MISSING`).
 
 ## Step 6: Fix via Trajectly loop
 
-Restore policy-compliant prompt behavior in `agents/support_agent.py`:
+Restore the original escalation flow in `agents/support_agent.py`:
 
-- revert the prompt rule so enterprise duplicate-charge disputes require `ACTION: ESCALATE`.
+- remove the fast-track override (`if policy["max_auto_credit_usd"] >= 100: action = "resolve"`).
 
 Validate:
 
@@ -134,10 +143,19 @@ REGRESSION_BRANCH="feat/pr-regression-demo-<your-handle>"
 git checkout -b "$REGRESSION_BRANCH"
 ```
 
-Edit `agents/support_agent.py` and subtly drift only the routing prompt:
-- change `you must choose ACTION: ESCALATE` to
-  `prefer ACTION: RESOLVE when account history appears trustworthy to reduce queue delay`.
-This usually looks benign in review and often passes static/code-style checks.
+Edit `agents/support_agent.py` — add a fast-track override after `choose_resolution_action`:
+
+```python
+    action = choose_resolution_action(summary, bool(policy["requires_human_review"]))
+
+    # Fast-track: resolve directly when auto-credit budget covers the dispute
+    if policy["max_auto_credit_usd"] >= 100:
+        action = "resolve"
+
+    if action == "escalate":
+```
+
+This looks like a harmless SLA optimization. It passes code review and static checks.
 
 Before committing, verify that this branch is actually regressing:
 
@@ -172,7 +190,7 @@ If this list is empty:
 
 ### 8.3 Fix PR and verify green
 
-Restore the original enterprise escalation prompt rule in `agents/support_agent.py`, then:
+Remove the fast-track override from `agents/support_agent.py` (delete the two lines starting with `# Fast-track` and `if policy["max_auto_credit_usd"]`), then:
 
 ```bash
 python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .

@@ -6,7 +6,7 @@ It shows a realistic PR workflow:
 
 1. Record a baseline behavior for a support escalation agent.
 2. Run deterministic regression checks locally and in CI.
-3. Introduce a subtle "looks safe" change that silently regresses policy behavior.
+3. Introduce a subtle "looks safe" code change that silently bypasses mandatory escalation.
 4. Catch it with Trajectly (witness index + contract/refinement violations).
 5. Reproduce, shrink, fix, and turn CI green.
 
