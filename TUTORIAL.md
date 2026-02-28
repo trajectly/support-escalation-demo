@@ -75,8 +75,16 @@ python -m trajectly record specs/trt-support-agent-baseline.agent.yaml --project
 ```
 
 This executes `agents/support_agent.py`, captures every tool call and LLM
-response, and stores the trace as the behavioral baseline in `.trajectly/baselines/`.
-Fixtures (deterministic replay data) are saved to `.trajectly/fixtures/`.
+response, and stores the baseline bundle in
+`.trajectly/baselines/trt-support-agent/v1/`:
+
+- `trace.jsonl` (baseline trace)
+- `trace.meta.json` (trace metadata)
+- `fixtures.json` (deterministic replay fixtures)
+- `baseline.meta.json` (clock/random seed + spec hash metadata)
+
+Trajectly also writes `.trajectly/current/trt-support-agent.json` to mark `v1`
+as the promoted default baseline version for this spec.
 
 If `OPENAI_API_KEY` and `TRAJECTLY_DEMO_USE_OPENAI=1` are set, live OpenAI
 responses are recorded. Otherwise a deterministic mock is used.
@@ -192,8 +200,9 @@ Instead of reading 12 events, you see the 4-5 that matter.
 | `.trajectly/reports/latest.json` | Machine-readable roll-up of all specs |
 | `.trajectly/reports/trt-support-agent.json` | Full report: skeletons, violations, witness, repro |
 | `.trajectly/reports/trt-support-agent.md` | Human-readable markdown version |
-| `.trajectly/baselines/trt-support-agent.jsonl` | The recorded baseline trace (one JSON event per line) |
-| `.trajectly/fixtures/trt-support-agent.json` | Recorded LLM/tool outputs for deterministic replay |
+| `.trajectly/baselines/trt-support-agent/v1/trace.jsonl` | Recorded baseline trace |
+| `.trajectly/baselines/trt-support-agent/v1/fixtures.json` | Deterministic replay fixtures |
+| `.trajectly/current/trt-support-agent.json` | Promoted baseline pointer (active version) |
 
 The JSON report contains fields not shown in the dashboard:
 - `baseline_skeleton` / `current_skeleton` -- exact ordered tool-call lists
@@ -282,18 +291,53 @@ Refresh the dashboard and confirm the status returns to green.
 
 ---
 
-## Step 8: Intentional behavior changes
+## Step 8: Determinism break and fix
+
+Trajectly also surfaces replay instability caused by hidden nondeterminism.
+
+### 8.1 Direct clock usage in agent code (expected FAIL)
+
+```bash
+python -m trajectly record specs/trt-support-agent-determinism-break.agent.yaml --project-root .
+python -m trajectly run specs/trt-support-agent-determinism-break.agent.yaml --project-root .
+```
+
+Expected: `FAIL` (exit code `1`).
+
+This variant reads `datetime.now(timezone.utc)` directly in agent code and
+injects it into the LLM prompt. Because that value changes between runs,
+fixture replay no longer matches and Trajectly reports a deterministic replay
+failure.
+
+### 8.2 Time via explicit `@tool` wrapper (expected PASS)
+
+```bash
+python -m trajectly record specs/trt-support-agent-determinism-fix.agent.yaml --project-root .
+python -m trajectly run specs/trt-support-agent-determinism-fix.agent.yaml --project-root .
+```
+
+Expected: `PASS` (exit code `0`).
+
+This variant routes clock access through `@tool("now_utc")`. Trajectly records
+the tool output in fixtures and replays it deterministically.
+
+---
+
+## Step 9: Intentional behavior changes
 
 If you intentionally change behavior and want to accept the new trace:
 
 ```bash
-python -m trajectly baseline update specs/trt-support-agent-baseline.agent.yaml
+python -m trajectly baseline create --name v2 specs/trt-support-agent-baseline.agent.yaml --project-root .
+python -m trajectly baseline diff trt-support-agent v1 v2 --project-root . --json
+python -m trajectly baseline promote v2 specs/trt-support-agent-baseline.agent.yaml --project-root .
 ```
 
-This command re-records the baseline from current code and fixtures.
+This records a new baseline version (`v2`), lets you diff it against `v1`, and
+then promotes `v2` as the default baseline for regular `python -m trajectly run`
+calls.
 
-Use baseline update only when the behavior change is deliberate and approved.
-Treat it as a contract change, not a quick fix for a failing check.
+Treat baseline changes as contract changes, not quick fixes for failing checks.
 
 Before updating:
 
@@ -306,6 +350,7 @@ Before updating:
 After updating:
 
 ```bash
+python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root . --baseline v2
 python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
 python -m trajectly report
 ```
@@ -318,9 +363,9 @@ In PR review, call out that baseline files changed intentionally
 
 ---
 
-## Step 9: CI/PR loop on GitHub
+## Step 10: CI/PR loop on GitHub
 
-### 9.1 Publish your own copy
+### 10.1 Publish your own copy
 
 If you cloned this demo, do **not** `git init` again. Create a private copy:
 
@@ -333,7 +378,7 @@ gh repo set-default <your-org>/support-escalation-demo
 The `gh repo set-default` command tells the GitHub CLI which repository to
 use for PR operations (required when multiple remotes exist).
 
-### 9.2 Create a subtle-regression PR
+### 10.2 Create a subtle-regression PR
 
 ```bash
 REGRESSION_BRANCH="feat/pr-regression-demo-$(whoami)"
@@ -388,7 +433,7 @@ If you do not see a triggered run:
 - Ensure Actions are enabled (`Settings -> Actions -> General`)
 - Ensure the PR targets `main` and `main` contains `.github/workflows/trajectly.yml`
 
-### 9.3 Fix and verify green
+### 10.3 Fix and verify green
 
 Remove the fast-track override from `agents/support_agent.py` (delete the
 comment line and the `if policy["max_auto_credit_usd"]` line), then:
@@ -403,7 +448,7 @@ gh pr checks --watch
 
 Expected: CI turns green.
 
-### 9.4 Enforce merge blocking (required for real gating)
+### 10.4 Enforce merge blocking (required for real gating)
 
 Right now the Trajectly check **reports** failure on the PR, but GitHub still
 allows you to click "Merge". To make failing checks actually **block** the

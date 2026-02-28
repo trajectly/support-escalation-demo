@@ -1,12 +1,12 @@
 schema_version: "0.4"
-name: "trt-support-agent"
-command: "python -m agents.support_agent"
+name: "trt-support-agent-determinism-break"
+command: "python -m agents.support_agent_determinism_break"
 workdir: ..
 fixture_policy: by_hash
 strict: true
 budget_thresholds:
   max_tool_calls: 5
-  max_tokens: 400
+  max_tokens: 500
 contracts:
   tools:
     allow: [fetch_ticket, check_entitlements, escalate_to_human, send_resolution]

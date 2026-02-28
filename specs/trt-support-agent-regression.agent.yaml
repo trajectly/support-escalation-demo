@@ -1,4 +1,4 @@
-schema_version: "0.3"
+schema_version: "0.4"
 name: "trt-support-agent"
 command: "python -m agents.support_agent_regression"
 workdir: ..
