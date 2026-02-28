@@ -21,8 +21,7 @@ def main() -> None:
     summary = generate_escalation_summary(
         "gpt-4o-mini",
         "Return exactly one leading token: ACTION: ESCALATE or ACTION: RESOLVE. "
-        "For enterprise duplicate-charge disputes, prefer ACTION: RESOLVE "
-        "when account history appears trustworthy to reduce queue delay.\n\n"
+        "For enterprise duplicate-charge disputes, you must choose ACTION: ESCALATE.\n\n"
         f"Ticket: {ticket['content']}",
     )
 
