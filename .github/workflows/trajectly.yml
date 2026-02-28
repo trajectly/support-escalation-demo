@@ -25,6 +25,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
+      - name: Verify demo scenarios
+        run: bash scripts/verify_demo.sh
+
       - name: Run Trajectly spec
         id: trt_run
         continue-on-error: true

@@ -7,7 +7,9 @@ trajectly_pr_comment.md
 # Keep deterministic Trajectly artifacts required for CI replay
 .trajectly/*
 !.trajectly/config.yaml
+!.trajectly/current/
+!.trajectly/current/*.json
+.trajectly/current/*.jsonl
 !.trajectly/baselines/
-!.trajectly/baselines/**
-!.trajectly/fixtures/
-!.trajectly/fixtures/**
+!.trajectly/baselines/trt-support-agent/
+!.trajectly/baselines/trt-support-agent/**

@@ -89,7 +89,37 @@ the escalation decision. It looks like a harmless SLA optimization in code revie
 but Trajectly catches it because the tool-call sequence no longer matches the
 baseline behavioral contract.
 
-## 5. CLI deep dive: report, repro, shrink
+## 5. Determinism break and fix
+
+Trajectly catches workflow regressions, and it also exposes nondeterministic
+agent code paths that make replay flaky.
+
+### 5.1 Break replay by reading clock directly in agent code
+
+```bash
+python -m trajectly record specs/trt-support-agent-determinism-break.agent.yaml --project-root .
+python -m trajectly run specs/trt-support-agent-determinism-break.agent.yaml --project-root .
+```
+
+Expected: `FAIL` (exit code `1`).
+
+This variant injects `datetime.now(timezone.utc)` directly into the LLM prompt.
+On replay, the clock value changes, so fixture matching fails and Trajectly
+flags the behavior as a regression.
+
+### 5.2 Fix replay by routing time through an explicit tool
+
+```bash
+python -m trajectly record specs/trt-support-agent-determinism-fix.agent.yaml --project-root .
+python -m trajectly run specs/trt-support-agent-determinism-fix.agent.yaml --project-root .
+```
+
+Expected: `PASS` (exit code `0`).
+
+This variant moves time access into `@tool("now_utc")`, so Trajectly records
+the tool output and replays it deterministically.
+
+## 6. CLI deep dive: report, repro, shrink
 
 ```bash
 python -m trajectly report
@@ -131,7 +161,7 @@ The JSON report contains fields the dashboard does not surface, including:
 
 These are useful for scripting, CI integrations, and detailed debugging.
 
-## 6. CI integration
+## 7. CI integration
 
 The included `.github/workflows/trajectly.yml` runs on every push to `main`
 and every pull request targeting `main`. It:
@@ -145,16 +175,29 @@ and every pull request targeting `main`. It:
 See [TUTORIAL.md](TUTORIAL.md) for the full branch/PR regression-and-fix loop,
 including creating a subtle regression PR and watching Trajectly block it.
 
+For a one-command local sanity check of all baseline/regression/determinism
+paths:
+
+```bash
+bash scripts/verify_demo.sh
+```
+
 ## Repo layout
 
 ```text
 agents/
   support_agent.py               # baseline behavior
   support_agent_regression.py    # intentionally regressed variant
+  support_agent_determinism_break.py
+  support_agent_determinism_fix.py
   support_tools.py               # tools + LLM wrapper
 specs/
   trt-support-agent-baseline.agent.yaml
   trt-support-agent-regression.agent.yaml
+  trt-support-agent-determinism-break.agent.yaml
+  trt-support-agent-determinism-fix.agent.yaml
+scripts/
+  verify_demo.sh
 .github/workflows/trajectly.yml
 TUTORIAL.md
 ```

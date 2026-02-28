@@ -1,2 +1,2 @@
-trajectly
+trajectly @ git+https://github.com/trajectly/trajectly.git@feat/v0-4-determinism-baseline-versioning
 openai

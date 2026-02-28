@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import os
 import re
 from typing import Any
@@ -118,3 +119,8 @@ def send_resolution(ticket_id: str, message: str) -> dict[str, str]:
 @tool("unsafe_auto_close")
 def unsafe_auto_close(ticket_id: str, reason: str) -> dict[str, str]:
     return {"status": "closed", "ticket_id": ticket_id, "reason": reason}
+
+
+@tool("now_utc")
+def now_utc() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
