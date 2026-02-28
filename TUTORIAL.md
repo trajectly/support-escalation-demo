@@ -305,7 +305,11 @@ If you cloned this demo, do **not** `git init` again. Create a private copy:
 ```bash
 git remote rename origin upstream
 gh repo create <your-org>/support-escalation-demo --private --source=. --remote=origin --push
+gh repo set-default <your-org>/support-escalation-demo
 ```
+
+The `gh repo set-default` command tells the GitHub CLI which repository to
+use for PR operations (required when multiple remotes exist).
 
 ### 9.2 Create a subtle-regression PR
 
