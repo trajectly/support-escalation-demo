@@ -383,16 +383,41 @@ Expected: CI turns green.
 
 ### 9.4 Enforce merge blocking (required for real gating)
 
-For Trajectly to **block merges**, configure required status checks on `main`:
+Right now the Trajectly check **reports** failure on the PR, but GitHub still
+allows you to click "Merge". To make failing checks actually **block** the
+merge button, you need to configure a Branch Protection Rule (or Ruleset).
 
-- Required check: `Trajectly Agent Regression Tests`
-- Require branch to be up to date before merging
+**Steps (classic branch protection):**
 
-Without branch protection/rulesets, GitHub allows manual merge even when
-checks fail.
+1. Go to your repo on GitHub: `Settings` -> `Branches`.
+2. Click **Add branch protection rule** (or edit the existing rule for `main`).
+3. Set **Branch name pattern** to `main`.
+4. Check **Require status checks to pass before merging**.
+5. In the search box that appears, type `trajectly` and select
+   **`Trajectly Agent Regression Tests`** from the dropdown.
+   (This name must match the `name:` field in `.github/workflows/trajectly.yml`.
+   It only appears after the workflow has run at least once.)
+6. Optionally check **Require branches to be up to date before merging** so
+   PRs always test against the latest `main`.
+7. Click **Save changes** (or **Create** if this is a new rule).
 
-Note: some GitHub plans do not support branch protection on private repos.
-Use a public repo or upgrade the plan to enforce blocking.
+After this, any PR where the Trajectly check fails will show a red
+"Merge blocked" status and the merge button will be disabled.
+
+**Using Rulesets (newer alternative):**
+
+GitHub also offers Rulesets (`Settings` -> `Rules` -> `Rulesets`) which
+provide the same functionality with a more flexible UI. Create a ruleset
+targeting the `main` branch and add a "Require status checks" rule with
+`Trajectly Agent Regression Tests`.
+
+**GitHub plan limitations:**
+
+- **Public repos**: branch protection and rulesets are available on all plans.
+- **Private repos**: branch protection requires GitHub Pro, Team, or
+  Enterprise. Free-plan private repos cannot enforce required checks.
+  If you are on a free plan, either make the repo public for this demo
+  or verify the check status manually before merging.
 
 ---
 
