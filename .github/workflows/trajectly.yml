@@ -20,14 +20,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Cache Trajectly workspace
-        uses: actions/cache@v4
-        with:
-          path: .trajectly
-          key: trajectly-${{ runner.os }}-${{ hashFiles('specs/**', 'agents/**') }}
-          restore-keys: |
-            trajectly-${{ runner.os }}-
-
       - name: Install Trajectly
         run: |
           python -m pip install --upgrade pip
