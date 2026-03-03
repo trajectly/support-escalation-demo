@@ -2,12 +2,12 @@
   "entries": [
     {
       "error": null,
-      "input_hash": "612a97f994bad91498f591ce3f47681fd9f40b5af94c8f32a6d5375a3175ca80",
+      "input_hash": "69b464334d5c817b5e4b4c73fe80ff31a31866e256e50bbabdb889a722fdeae1",
       "input_payload": {
-        "args": [
-          "TICKET-8801"
-        ],
-        "kwargs": {}
+        "args": [],
+        "kwargs": {
+          "ticket_id": "TICKET-8801"
+        }
       },
       "kind": "tool",
       "name": "fetch_ticket",
@@ -24,13 +24,18 @@
     },
     {
       "error": null,
-      "input_hash": "aed62770a7d40c7e8a83fe09925714aaf03cd4cf108f12e93da95f79748c73f0",
+      "input_hash": "07c7197f555562ba33737022b1cf6e807f9a36915f7dd4013190e79fcc289b27",
       "input_payload": {
-        "args": [
-          "enterprise",
-          "duplicate_charge"
-        ],
-        "kwargs": {}
+        "args": [],
+        "kwargs": {
+          "ticket": {
+            "account_tier": "enterprise",
+            "content": "Enterprise customer reports duplicate billing on annual contract renewal and asks for immediate reversal before month-end close.",
+            "issue_type": "duplicate_charge",
+            "priority": "high",
+            "ticket_id": "TICKET-8801"
+          }
+        }
       },
       "kind": "tool",
       "name": "check_entitlements",
@@ -45,13 +50,18 @@
     },
     {
       "error": null,
-      "input_hash": "c94659d725b4628ee82a8b950cdea707da02d1ec36ad99a0091c79d61ac8d0bc",
+      "input_hash": "07c7197f555562ba33737022b1cf6e807f9a36915f7dd4013190e79fcc289b27",
       "input_payload": {
-        "args": [
-          "gpt-4o-mini",
-          "Return exactly one leading token: ACTION: ESCALATE or ACTION: RESOLVE. For enterprise duplicate-charge disputes, you must choose ACTION: ESCALATE.\n\nTicket: Enterprise customer reports duplicate billing on annual contract renewal and asks for immediate reversal before month-end close."
-        ],
-        "kwargs": {}
+        "args": [],
+        "kwargs": {
+          "ticket": {
+            "account_tier": "enterprise",
+            "content": "Enterprise customer reports duplicate billing on annual contract renewal and asks for immediate reversal before month-end close.",
+            "issue_type": "duplicate_charge",
+            "priority": "high",
+            "ticket_id": "TICKET-8801"
+          }
+        }
       },
       "kind": "llm",
       "name": "mock-openai:mock-escalation-v1",
