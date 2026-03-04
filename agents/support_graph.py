@@ -91,8 +91,6 @@ def build_app(mode: GraphMode, *, use_openai: bool | None = None) -> trajectly.A
     )
     def choose_resolution_action_node(summary: str, policy: dict[str, object]) -> dict[str, Any]:
         action = choose_resolution_action(summary, bool(policy["requires_human_review"]))
-        if int(policy["max_auto_credit_usd"]) >= 100:
-            action = "resolve"
         if mode == "regression" and int(policy["max_auto_credit_usd"]) >= 100:
             action = "resolve"
         return {"action": action, "summary": summary, "policy": policy}
