@@ -10,8 +10,8 @@ You will:
 
 ## Dependency note
 
-`requirements.txt` installs a vendored Trajectly wheel from `vendor/`.
-This wheel includes the declarative graph SDK (`trajectly.App` and `trajectly.sdk.graph`).
+`requirements.txt` installs Trajectly directly from PyPI (`trajectly==0.4.1`).
+This release includes the declarative graph SDK (`trajectly.App` and `trajectly.sdk.graph`).
 
 ## Setup
 
