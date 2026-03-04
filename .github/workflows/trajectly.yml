@@ -26,6 +26,8 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Verify demo scenarios
+        id: verify_demo
+        continue-on-error: true
         run: bash scripts/verify_demo.sh
 
       - name: Run Trajectly spec
@@ -37,7 +39,17 @@ jobs:
 
       - name: Generate PR comment markdown
         if: always()
-        run: python -m trajectly report --pr-comment > trajectly_pr_comment.md
+        continue-on-error: true
+        run: |
+          if python -m trajectly report --pr-comment > trajectly_pr_comment.md; then
+            echo "Generated Trajectly PR comment markdown."
+          else
+            printf '%s\n\n%s\n%s\n' \
+              '## Trajectly Report Unavailable' \
+              'Trajectly could not generate `latest.json` for this run.' \
+              'See failed check steps above for the primary regression/error signal.' \
+              > trajectly_pr_comment.md
+          fi
 
       - name: Upload Trajectly artifacts
         if: always()
@@ -84,8 +96,12 @@ jobs:
       - name: Enforce Trajectly verdict
         if: always()
         run: |
+          if [ "${{ steps.verify_demo.outcome }}" != "success" ]; then
+            echo "Trajectly detected a regression during verify demo scenarios (step outcome: ${{ steps.verify_demo.outcome }})."
+            exit 1
+          fi
           if [ "${{ steps.trt_run.outcome }}" != "success" ]; then
-            echo "Trajectly detected a regression (step outcome: ${{ steps.trt_run.outcome }})."
+            echo "Trajectly detected a regression in baseline replay (step outcome: ${{ steps.trt_run.outcome }})."
             exit 1
           fi
           echo "Trajectly: all checks passed."
