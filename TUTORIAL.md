@@ -21,19 +21,9 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-### Optional dashboard setup
+### Output artifacts
 
-```bash
-cd ..
-git clone https://github.com/trajectly/trajectly-dashboard-local.git
-cd trajectly-dashboard-local
-npm install
-printf "VITE_DATA_DIR=%s/.trajectly/reports\n" "$(pwd)/../support-escalation-demo" > .env.local
-npm run dev &
-cd ../support-escalation-demo
-```
-
-Dashboard URL: <http://localhost:5173/dashboard>
+Use CLI outputs and `.trajectly/reports/` artifacts.
 
 ## Step 1: Understand the graph layout
 
@@ -58,7 +48,7 @@ python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-ro
 
 Expected: PASS (`0`).
 
-If dashboard is running, baseline appears green.
+Baseline artifacts are written under `.trajectly/reports/`.
 
 ## Step 3: Run intentional regression variant
 
