@@ -2,6 +2,12 @@
 
 This walkthrough uses real validated outputs from March 5, 2026.
 
+## What the agent does and why Trajectly is used
+
+1. The support agent fetches a ticket, checks entitlement policy, then executes an escalation or resolution action.
+2. The baseline path escalates sensitive enterprise billing cases; the regression path intentionally sends resolution directly.
+3. The goal with Trajectly is to keep that behavior under deterministic replay so changes are testable, reproducible, and easy to debug.
+
 Path placeholders:
 
 1. `$PROJECT_ROOT` = local repo path

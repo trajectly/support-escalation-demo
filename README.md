@@ -2,6 +2,12 @@
 
 This demo shows a support escalation workflow built with `trajectly.App` and validated with deterministic replay.
 
+## What the agent does and why Trajectly is used
+
+1. The agent reads a support ticket, checks entitlements, then chooses whether to escalate to a human or send a direct resolution.
+2. The baseline path escalates enterprise duplicate-charge tickets; the regression variant intentionally resolves directly.
+3. Trajectly is used to record baseline behavior and replay it as a deterministic gate so policy regressions are caught with a reproducible witness.
+
 ## What this demonstrates
 
 1. Baseline behavior passes.
