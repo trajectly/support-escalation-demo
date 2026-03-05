@@ -6,7 +6,7 @@ You will:
 - run a graph-based baseline
 - run an intentional regression and see deterministic failure
 - run determinism break/fix variants
-- inspect results in dashboard and CLI (`report`, `repro`, `shrink`)
+- inspect results in CLI (`report`, `repro`, `shrink`) and CI artifacts
 
 ## Dependency note
 
@@ -84,19 +84,6 @@ python -m trajectly report
 python -m trajectly repro
 python -m trajectly shrink
 ```
-
-## Optional dashboard
-
-```bash
-cd ..
-git clone https://github.com/trajectly/trajectly-dashboard-local.git
-cd trajectly-dashboard-local
-npm install
-printf "VITE_DATA_DIR=%s/.trajectly/reports\n" "$(pwd)/../support-escalation-demo" > .env.local
-npm run dev
-```
-
-Open: <http://localhost:5173/dashboard>
 
 ## CI workflow
 
