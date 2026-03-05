@@ -1,13 +1,11 @@
-# Tutorial: End-to-End Trajectly PR Regression Workflow (Support, Declarative Graph)
+# Tutorial: End-to-End Trajectly PR Regression Workflow (Support)
 
-This tutorial validates the full lifecycle with the declarative graph SDK (`trajectly.App`) in a realistic support escalation agent.
+This walkthrough uses real validated outputs from March 5, 2026.
 
-You will:
-1. run baseline (PASS)
-2. run intentional regression (FAIL)
-3. use `report`, `repro`, `shrink`
-4. run determinism break/fix
-5. simulate a PR-style risky change in graph logic and recover to green
+Path placeholders:
+
+1. `$PROJECT_ROOT` = local repo path
+2. `$VALIDATION_BRANCH` = `validation/docs-e2e-support-escalation-demo-202603051852`
 
 ## Step 0: Setup
 
@@ -21,24 +19,17 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-### Output artifacts
+Observed result summary:
 
-Use CLI outputs and `.trajectly/reports/` artifacts.
+```text
+setup_venv=0
+setup_pip_upgrade=0
+setup_requirements=0
+```
 
-## Step 1: Understand the graph layout
+## Step 1: Initialize and baseline
 
-Core graph module:
-- `agents/support_graph.py`
-
-Spec entrypoints (thin wrappers):
-- baseline -> `agents/support_agent.py`
-- regression -> `agents/support_agent_regression.py`
-- determinism break -> `agents/support_agent_determinism_break.py`
-- determinism fix -> `agents/support_agent_determinism_fix.py`
-
-The graph emits the same tool event names as contracts expect.
-
-## Step 2: Initialize and record baseline
+Commands:
 
 ```bash
 python -m trajectly init
@@ -46,108 +37,127 @@ python -m trajectly record specs/trt-support-agent-baseline.agent.yaml --project
 python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
 ```
 
-Expected: PASS (`0`).
+Observed output excerpts:
 
-Baseline artifacts are written under `.trajectly/reports/`.
+```text
+Initialized Trajectly workspace at $PROJECT_ROOT
+Recorded 1 spec(s) successfully
+- `trt-support-agent`: clean
+  - trt: `PASS`
+```
 
-## Step 3: Run intentional regression variant
+## Step 2: Intentional regression
+
+Command:
 
 ```bash
 python -m trajectly run specs/trt-support-agent-regression.agent.yaml --project-root .
 ```
 
-Expected: FAIL (`1`).
+Observed output excerpt:
 
-Expected failure shape:
-- missing baseline escalation path
-- refinement/contract evidence in report
-- deterministic repro available
+```text
+- `trt-support-agent`: regression
+  - trt: `FAIL` (witness=10)
+```
 
-## Step 4: Triage from CLI
+Observed exit code:
+
+```text
+13_run_regression=1
+```
+
+## Step 3: Triage commands
+
+Commands:
 
 ```bash
 python -m trajectly report
 python -m trajectly repro
 python -m trajectly shrink
+python -m trajectly report --json
+python -m trajectly report
 ```
 
-Expected exit behavior here:
-- `report` -> `0`
-- `repro` -> `1` (reproduces failure)
-- `shrink` -> `0`
+Observed output excerpts:
 
-## Step 5: Determinism break and fix
+```text
+# report
+- `trt-support-agent`: regression
+  - trt: `FAIL` (witness=10)
 
-### 5.1 Determinism break (expected fail)
+# repro
+Repro command: python -m trajectly run "$PROJECT_ROOT/specs/trt-support-agent-regression.agent.yaml" --project-root "$PROJECT_ROOT"
+- `trt-support-agent`: regression
+  - trt: `FAIL` (witness=10)
+
+# shrink
+Shrink completed and report updated with shrink stats.
+
+# report --json excerpt
+"trt_failure_class": "REFINEMENT"
+"code": "REFINEMENT_BASELINE_CALL_MISSING"
+"expected": "fetch_ticket"
+"observed": ["send_resolution"]
+"trt_shrink_stats": { "original_len": 11, "reduced_len": 1 }
+
+# report (markdown)
+- `trt-support-agent`: regression
+  - trt: `FAIL` (witness=0)
+```
+
+Observed exit behavior:
+
+```text
+14_report_after_regression=0
+15_repro=1
+16_shrink=0
+17_report_after_shrink_json=0
+18_report_after_shrink_md=0
+```
+
+## Step 4: Determinism break and fix
+
+Commands:
 
 ```bash
 python -m trajectly record specs/trt-support-agent-determinism-break.agent.yaml --project-root .
 python -m trajectly run specs/trt-support-agent-determinism-break.agent.yaml --project-root .
-```
 
-Expected: FAIL (`1`).
-
-### 5.2 Determinism fix (expected pass)
-
-```bash
 python -m trajectly record specs/trt-support-agent-determinism-fix.agent.yaml --project-root .
 python -m trajectly run specs/trt-support-agent-determinism-fix.agent.yaml --project-root .
 ```
 
-Expected: PASS (`0`).
+Observed output excerpts:
 
-## Step 6: Simulate risky PR change in graph baseline logic
+```text
+# break
+- `trt-support-agent-determinism-break`: regression
+  - trt: `FAIL` (witness=4)
 
-Edit `agents/support_graph.py`.
-
-Find `choose_resolution_action_node(...)` and temporarily insert this override:
-
-```python
-if int(policy["max_auto_credit_usd"]) >= 100:
-    action = "resolve"
+# fix
+- `trt-support-agent-determinism-fix`: clean
+  - trt: `PASS`
 ```
 
-Now run baseline spec again:
+Observed exit behavior:
+
+```text
+20_record_det_break=0
+21_run_det_break=1
+22_record_det_fix=0
+23_run_det_fix=0
+```
+
+## Step 5: PR drill (risky change)
+
+Create branch:
 
 ```bash
-python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
+git checkout -b $VALIDATION_BRANCH
 ```
 
-Expected: FAIL (`1`).
-
-This simulates a subtle "performance optimization" that bypasses required escalation.
-
-## Step 7: Revert fix and confirm green
-
-Remove the override you added in Step 6, then run:
-
-```bash
-python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
-```
-
-Expected: PASS (`0`).
-
-## Step 8: Baseline lifecycle commands (intentional behavior changes)
-
-Use these only when behavior changes are intentionally approved:
-
-```bash
-python -m trajectly baseline create --name v2 specs/trt-support-agent-baseline.agent.yaml --project-root .
-python -m trajectly baseline diff trt-support-agent v1 v2 --project-root . --json
-python -m trajectly baseline promote v2 specs/trt-support-agent-baseline.agent.yaml --project-root .
-```
-
-## Step 9: PR failure drill (local branch + failing commit)
-
-This section simulates a real PR lifecycle with explicit commits.
-
-Create a feature branch:
-
-```bash
-git checkout -b tutorial/pr-fail-drill
-```
-
-Re-introduce the risky baseline bypass in `agents/support_graph.py`:
+Inject risky change into `agents/support_graph.py`:
 
 ```bash
 python - <<'PY'
@@ -167,39 +177,46 @@ path.write_text(text, encoding="utf-8")
 PY
 ```
 
-Commit the risky change:
+Commit risky change:
 
 ```bash
 git add agents/support_graph.py
 git commit -m "test: inject risky escalation bypass to rehearse failing PR"
 ```
 
-Run the same replay gate used by CI for PR verdicts:
+Observed output:
+
+```text
+[validation/docs-e2e-support-escalation-demo-202603051852 ...] test: inject risky escalation bypass to rehearse failing PR
+ 1 file changed, 2 insertions(+)
+```
+
+Run baseline gate (should fail):
 
 ```bash
 python -m trajectly init
 python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
-echo $?
-```
-
-Expected:
-- baseline replay exits `1`
-- this fail is caused by Trajectly catching a regression (`trt: FAIL` + witness), not by tooling/runtime errors
-
-Confirm the failure reason:
-
-```bash
 python -m trajectly report
 ```
 
-Expected report signal:
-- `trt: FAIL`
-- witness index present
-- regression details tied to baseline-vs-current divergence
+Observed output excerpt:
 
-## Step 10: PR fix commit and green rerun
+```text
+- `trt-support-agent`: regression
+  - trt: `FAIL` (witness=10)
+```
 
-Remove the risky override from `agents/support_graph.py` (or restore from `origin/main`), then commit:
+Observed exit behavior:
+
+```text
+pr_init_after_risky=0
+pr_run_baseline_after_risky=1
+pr_report_after_risky=0
+```
+
+## Step 6: PR drill (fix commit)
+
+Restore safe behavior and commit fix:
 
 ```bash
 git checkout origin/main -- agents/support_graph.py
@@ -207,47 +224,75 @@ git add agents/support_graph.py
 git commit -m "fix: restore required escalation behavior"
 ```
 
-Re-run the same replay gate:
+Observed output:
+
+```text
+[validation/docs-e2e-support-escalation-demo-202603051852 ...] fix: restore required escalation behavior
+ 1 file changed, 2 deletions(-)
+```
+
+Re-run baseline gate:
 
 ```bash
 python -m trajectly init
 python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
-echo $?
 ```
 
-Expected:
-- baseline replay exits `0`
-- your branch is ready for PR review
+Observed output excerpt:
 
-Optional full parity check before opening PR:
+```text
+- `trt-support-agent`: clean
+  - trt: `PASS`
+```
+
+Observed exit behavior:
+
+```text
+pr_init_after_fix=0
+pr_run_baseline_after_fix=0
+```
+
+## Step 7: Push branch and create PR
+
+Commands:
 
 ```bash
-bash scripts/verify_demo.sh
+git push -u origin $VALIDATION_BRANCH
+gh pr create --base main --head $VALIDATION_BRANCH --title "docs-validation: support e2e capture" --body "Temporary PR for tutorial output capture. Will close unmerged."
 ```
 
-## Step 11: Optional GitHub PR execution
+Observed output:
 
-If you want to test the full remote loop:
+```text
+Branch '$VALIDATION_BRANCH' set up to track remote branch '$VALIDATION_BRANCH' from 'origin'.
+https://github.com/trajectly/support-escalation-demo/pull/8
+```
+
+## Step 8: Cleanup (temporary validation branch/PR)
+
+Commands:
 
 ```bash
-git push -u origin tutorial/pr-fail-drill
-gh pr create --fill --base main --head tutorial/pr-fail-drill
+gh pr close 8 --delete-branch --comment "Closing temporary docs-validation PR used to capture tutorial outputs."
+git checkout main
+git branch -D $VALIDATION_BRANCH
 ```
 
-After opening the PR, confirm:
-1. the first risky commit fails CI
-2. the fix commit turns CI green
+Observed output:
 
-## Step 12: Optional live OpenAI recording
-
-Default is deterministic mock LLM mode.
-
-To record with OpenAI:
-
-```bash
-export OPENAI_API_KEY="sk-..."
-export TRAJECTLY_DEMO_USE_OPENAI=1
-python -m trajectly record specs/trt-support-agent-baseline.agent.yaml --project-root .
+```text
+✓ Closed pull request trajectly/support-escalation-demo#8 (docs-validation: support e2e capture)
+✓ Deleted branch validation/docs-e2e-support-escalation-demo-202603051852
+Deleted branch validation/docs-e2e-support-escalation-demo-202603051852 (was 0d2ac9b).
 ```
 
-Replay remains fixture-based and deterministic.
+## Final expected verdicts
+
+1. Baseline: pass.
+2. Regression: fail with witness.
+3. Repro: fail (expected).
+4. Shrink: success.
+5. Determinism break: fail.
+6. Determinism fix: pass.
+7. PR drill risky commit: fail.
+8. PR drill fix commit: pass.

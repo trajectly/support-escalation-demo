@@ -1,17 +1,13 @@
 # Support Escalation Demo for Trajectly (Declarative Graph)
 
-This demo shows how to build and test an agent with the declarative graph SDK (`trajectly.App`) and enforce deterministic regression gates in CI.
+This demo shows a support escalation workflow built with `trajectly.App` and validated with deterministic replay.
 
-You will:
-- run a graph-based baseline
-- run an intentional regression and see deterministic failure
-- run determinism break/fix variants
-- inspect results in CLI (`report`, `repro`, `shrink`) and CI artifacts
+## What this demonstrates
 
-## Dependency note
-
-`requirements.txt` installs Trajectly directly from PyPI (`trajectly==0.4.1`).
-This release includes the declarative graph SDK (`trajectly.App` and `trajectly.sdk.graph`).
+1. Baseline behavior passes.
+2. Intentional regression fails deterministically.
+3. `report`, `repro`, and `shrink` provide triage signals.
+4. Determinism break fails and determinism fix passes.
 
 ## Setup
 
@@ -25,43 +21,74 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-## Graph architecture in this demo
+Validated on: March 5, 2026 (clean run).
 
-Main graph builder:
-- `agents/support_graph.py`
+## End-to-end Commands With Observed Outputs
 
-Thin entry modules used by specs:
-- `agents/support_agent.py` -> baseline graph mode
-- `agents/support_agent_regression.py` -> regression mode
-- `agents/support_agent_determinism_break.py` -> determinism-break mode
-- `agents/support_agent_determinism_fix.py` -> determinism-fix mode
+### 1) Initialize workspace
 
-The graph routes through the same Trajectly instrumentation path as before and preserves tool event names used in contracts:
-- `fetch_ticket`
-- `check_entitlements`
-- `escalate_to_human`
-- `send_resolution`
-- `now_utc` (determinism-fix)
-
-## Run baseline
+Command:
 
 ```bash
 python -m trajectly init
+```
+
+Observed output:
+
+```text
+Initialized Trajectly workspace at $PROJECT_ROOT
+```
+
+What this means:
+
+1. `.trajectly/` workspace metadata is ready.
+
+### 2) Record and run baseline
+
+Commands:
+
+```bash
 python -m trajectly record specs/trt-support-agent-baseline.agent.yaml --project-root .
 python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
 ```
 
-Expected: `PASS` (exit code `0`).
+Observed output excerpts:
 
-## Run intentional regression
+```text
+Recorded 1 spec(s) successfully
+
+- `trt-support-agent`: clean
+  - trt: `PASS`
+```
+
+What this means:
+
+1. Baseline trace exists.
+2. Baseline replay is clean.
+
+### 3) Run intentional regression
+
+Command:
 
 ```bash
 python -m trajectly run specs/trt-support-agent-regression.agent.yaml --project-root .
 ```
 
-Expected: `FAIL` (exit code `1`).
+Observed output excerpt:
 
-## Triage commands
+```text
+- `trt-support-agent`: regression
+  - trt: `FAIL` (witness=10)
+```
+
+What this means:
+
+1. Regression is detected.
+2. This step is expected to exit non-zero.
+
+### 4) Triage with report, repro, shrink
+
+Commands:
 
 ```bash
 python -m trajectly report
@@ -69,35 +96,104 @@ python -m trajectly repro
 python -m trajectly shrink
 ```
 
-Expected exits after the intentional regression run above:
-- `report` -> `0`
-- `repro` -> `1`
-- `shrink` -> `0`
+Observed output excerpts:
 
-## Determinism scenarios
+```text
+# report
+- `trt-support-agent`: regression
+  - trt: `FAIL` (witness=10)
 
-Break (expected fail):
+# repro
+Repro command: python -m trajectly run "$PROJECT_ROOT/specs/trt-support-agent-regression.agent.yaml" --project-root "$PROJECT_ROOT"
+- `trt-support-agent`: regression
+  - trt: `FAIL` (witness=10)
+
+# shrink
+Shrink completed and report updated with shrink stats.
+```
+
+What this means:
+
+1. `report` summarizes the failure.
+2. `repro` replays the same failing case.
+3. `shrink` reduces the failing counterexample.
+
+### 5) Inspect JSON after shrink
+
+Command:
+
+```bash
+python -m trajectly report --json
+```
+
+Observed output excerpt:
+
+```json
+{
+  "regressions": 1,
+  "reports": [
+    {
+      "trt_failure_class": "REFINEMENT",
+      "trt_primary_violation": {
+        "code": "REFINEMENT_BASELINE_CALL_MISSING",
+        "expected": "fetch_ticket",
+        "observed": ["send_resolution"]
+      },
+      "trt_shrink_stats": {
+        "original_len": 11,
+        "reduced_len": 1
+      },
+      "trt_status": "FAIL"
+    }
+  ]
+}
+```
+
+What this means:
+
+1. Failure class is explicit (`REFINEMENT_BASELINE_CALL_MISSING`).
+2. Shrink reduced the failing trace.
+
+### 6) Determinism break and fix
+
+Commands:
 
 ```bash
 python -m trajectly record specs/trt-support-agent-determinism-break.agent.yaml --project-root .
 python -m trajectly run specs/trt-support-agent-determinism-break.agent.yaml --project-root .
-```
 
-Fix (expected pass):
-
-```bash
 python -m trajectly record specs/trt-support-agent-determinism-fix.agent.yaml --project-root .
 python -m trajectly run specs/trt-support-agent-determinism-fix.agent.yaml --project-root .
 ```
 
-## CI workflow
+Observed output excerpts:
 
-`.github/workflows/trajectly.yml` runs:
-1. `bash scripts/verify_demo.sh`
-2. baseline replay gate
-3. report generation + PR comment
-4. artifact upload
-5. fail job on regression
+```text
+# determinism break
+- `trt-support-agent-determinism-break`: regression
+  - trt: `FAIL` (witness=4)
+
+# determinism fix
+- `trt-support-agent-determinism-fix`: clean
+  - trt: `PASS`
+```
+
+What this means:
+
+1. Non-deterministic behavior is catchable.
+2. Determinism fix restores clean replay.
+
+## What success looks like
+
+From the validated run:
+
+1. Baseline run: exit `0`, `PASS`.
+2. Regression run: exit `1`, `FAIL` with witness.
+3. `report`: exit `0`.
+4. `repro`: exit `1` (expected).
+5. `shrink`: exit `0`.
+6. Determinism break run: exit `1`.
+7. Determinism fix run: exit `0`.
 
 ## One-command local verification
 
@@ -105,18 +201,12 @@ python -m trajectly run specs/trt-support-agent-determinism-fix.agent.yaml --pro
 bash scripts/verify_demo.sh
 ```
 
-## Optional live OpenAI recording
+## Repository structure
 
-Default demo mode uses deterministic mock LLM responses.
+1. `agents/support_graph.py`: graph logic and routing policy.
+2. `agents/support_agent*.py`: spec entry modules.
+3. `specs/*.agent.yaml`: baseline/regression/determinism specs.
+4. `scripts/verify_demo.sh`: CI-equivalent local check.
+5. `.github/workflows/trajectly.yml`: CI workflow.
 
-To record with live OpenAI:
-
-```bash
-export OPENAI_API_KEY="sk-..."
-export TRAJECTLY_DEMO_USE_OPENAI=1
-python -m trajectly record specs/trt-support-agent-baseline.agent.yaml --project-root .
-```
-
-After recording, replay remains fixture-based and deterministic.
-
-For the full end-to-end walkthrough (including PR fail/fix loop), see [TUTORIAL.md](TUTORIAL.md).
+For the full walkthrough including PR drill and cleanup, see [TUTORIAL.md](TUTORIAL.md).
