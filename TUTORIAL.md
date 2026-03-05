@@ -19,14 +19,6 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Observed result summary:
-
-```text
-setup_venv=0
-setup_pip_upgrade=0
-setup_requirements=0
-```
-
 ## Step 1: Initialize and baseline
 
 Commands:
