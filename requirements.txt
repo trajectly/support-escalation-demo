@@ -1,2 +1,2 @@
-trajectly==0.4.1
+trajectly==0.4.2
 openai
