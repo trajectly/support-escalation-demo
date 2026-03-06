@@ -212,7 +212,7 @@ bash scripts/verify_demo.sh
 This demo uses a hybrid CI gate:
 
 1. `bash scripts/verify_demo.sh` validates the full local regression/determinism flow.
-2. `trajectly/trajectly-action@v1` runs baseline replay, publishes artifacts, and posts PR comments.
+2. `trajectly/trajectly-action@v1.0.1` runs baseline replay, publishes artifacts, and posts PR comments.
 
 Workflow snippet:
 
@@ -236,7 +236,7 @@ jobs:
         run: bash scripts/verify_demo.sh
       - id: trt_action
         continue-on-error: true
-        uses: trajectly/trajectly-action@v1
+        uses: trajectly/trajectly-action@v1.0.1
         with:
           spec_glob: "specs/trt-support-agent-baseline.agent.yaml"
           project_root: "."
@@ -256,6 +256,15 @@ What to expect:
 2. `agents/support_agent*.py`: spec entry modules.
 3. `specs/*.agent.yaml`: baseline/regression/determinism specs.
 4. `scripts/verify_demo.sh`: CI-equivalent local check.
-5. `.github/workflows/trajectly.yml`: hybrid CI workflow using `trajectly/trajectly-action@v1`.
+5. `.github/workflows/trajectly.yml`: hybrid CI workflow using `trajectly/trajectly-action@v1.0.1`.
+
+## Docs sync contract
+
+1. Canonical deep-dive with full observed outputs lives in `procurement-approval-demo`.
+2. This support demo mirrors the same CI/action usage style and version pinning for consistency.
+3. When bumping the action version, update in the same release PR:
+   - `.github/workflows/trajectly.yml` in both demo repos
+   - CI workflow snippets in both demo READMEs
+   - Tutorial CI mapping lines that mention the action ref
 
 For the full walkthrough including PR drill and cleanup, see [TUTORIAL.md](TUTORIAL.md).
