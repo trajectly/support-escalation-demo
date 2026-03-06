@@ -1,6 +1,6 @@
 # Tutorial: End-to-End Trajectly PR Regression Workflow (Support)
 
-This walkthrough uses real validated outputs from March 6, 2026.
+This walkthrough uses real validated outputs.
 
 ## What the agent does and why Trajectly is used
 
