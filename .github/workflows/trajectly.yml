@@ -30,68 +30,15 @@ jobs:
         continue-on-error: true
         run: bash scripts/verify_demo.sh
 
-      - name: Run Trajectly spec
-        id: trt_run
+      - name: Run Trajectly action
+        id: trt_action
         continue-on-error: true
-        run: |
-          python -m trajectly init
-          python -m trajectly run specs/trt-support-agent-baseline.agent.yaml --project-root .
-
-      - name: Generate PR comment markdown
-        if: always()
-        continue-on-error: true
-        run: |
-          if python -m trajectly report --pr-comment > trajectly_pr_comment.md; then
-            echo "Generated Trajectly PR comment markdown."
-          else
-            printf '%s\n\n%s\n%s\n' \
-              '## Trajectly Report Unavailable' \
-              'Trajectly could not generate `latest.json` for this run.' \
-              'See failed check steps above for the primary regression/error signal.' \
-              > trajectly_pr_comment.md
-          fi
-
-      - name: Upload Trajectly artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
+        uses: trajectly/trajectly-action@v1
         with:
-          name: trajectly-artifacts
-          path: .trajectly/**
-          include-hidden-files: true
-
-      - name: Post or update PR comment
-        if: always() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require("fs");
-            const marker = "<!-- trajectly-report -->";
-            const body = fs.readFileSync("trajectly_pr_comment.md", "utf8");
-            const fullBody = `${marker}\n${body}`;
-            const { owner, repo } = context.repo;
-            const issue_number = context.payload.pull_request.number;
-
-            const comments = await github.paginate(
-              github.rest.issues.listComments,
-              { owner, repo, issue_number, per_page: 100 }
-            );
-            const existing = comments.find(c => c.body && c.body.includes(marker));
-
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner,
-                repo,
-                comment_id: existing.id,
-                body: fullBody,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number,
-                body: fullBody,
-              });
-            }
+          spec_glob: "specs/trt-support-agent-baseline.agent.yaml"
+          project_root: "."
+          comment_pr: "true"
+          upload_artifacts: "true"
 
       - name: Enforce Trajectly verdict
         if: always()
@@ -100,8 +47,8 @@ jobs:
             echo "Trajectly detected a regression during verify demo scenarios (step outcome: ${{ steps.verify_demo.outcome }})."
             exit 1
           fi
-          if [ "${{ steps.trt_run.outcome }}" != "success" ]; then
-            echo "Trajectly detected a regression in baseline replay (step outcome: ${{ steps.trt_run.outcome }})."
+          if [ "${{ steps.trt_action.outcome }}" != "success" ]; then
+            echo "Trajectly detected a regression in baseline replay (step outcome: ${{ steps.trt_action.outcome }})."
             exit 1
           fi
           echo "Trajectly: all checks passed."

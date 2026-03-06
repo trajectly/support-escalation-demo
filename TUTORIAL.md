@@ -1,6 +1,6 @@
 # Tutorial: End-to-End Trajectly PR Regression Workflow (Support)
 
-This walkthrough uses real validated outputs from March 5, 2026.
+This walkthrough uses real validated outputs from March 6, 2026.
 
 ## What the agent does and why Trajectly is used
 
@@ -283,6 +283,14 @@ Observed output:
 ✓ Deleted branch validation/docs-e2e-support-escalation-demo-202603051852
 Deleted branch validation/docs-e2e-support-escalation-demo-202603051852 (was 0d2ac9b).
 ```
+
+## CI alignment (hybrid action gate)
+
+The repository CI gate now mirrors procurement:
+
+1. `verify_demo.sh` must pass.
+2. `trajectly/trajectly-action@v1` baseline replay must pass.
+3. PR comments and `.trajectly/**` artifacts are handled by the action step.
 
 ## Final expected verdicts
 
