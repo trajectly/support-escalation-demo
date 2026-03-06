@@ -27,7 +27,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Validated on: March 5, 2026 (clean run).
+Validated on: March 6, 2026 (clean run).
 
 ## End-to-end Commands With Observed Outputs
 
@@ -207,12 +207,55 @@ From the validated run:
 bash scripts/verify_demo.sh
 ```
 
+## CI workflow (canonical action)
+
+This demo uses a hybrid CI gate:
+
+1. `bash scripts/verify_demo.sh` validates the full local regression/determinism flow.
+2. `trajectly/trajectly-action@v1` runs baseline replay, publishes artifacts, and posts PR comments.
+
+Workflow snippet:
+
+```yaml
+jobs:
+  trajectly:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - id: verify_demo
+        continue-on-error: true
+        run: bash scripts/verify_demo.sh
+      - id: trt_action
+        continue-on-error: true
+        uses: trajectly/trajectly-action@v1
+        with:
+          spec_glob: "specs/trt-support-agent-baseline.agent.yaml"
+          project_root: "."
+          comment_pr: "true"
+          upload_artifacts: "true"
+```
+
+What to expect:
+
+1. CI fails if either the script gate or action gate fails.
+2. PRs get a `<!-- trajectly-report -->` comment marker when comment posting is enabled.
+3. `.trajectly/**` artifacts are uploaded by the action step.
+
 ## Repository structure
 
 1. `agents/support_graph.py`: graph logic and routing policy.
 2. `agents/support_agent*.py`: spec entry modules.
 3. `specs/*.agent.yaml`: baseline/regression/determinism specs.
 4. `scripts/verify_demo.sh`: CI-equivalent local check.
-5. `.github/workflows/trajectly.yml`: CI workflow.
+5. `.github/workflows/trajectly.yml`: hybrid CI workflow using `trajectly/trajectly-action@v1`.
 
 For the full walkthrough including PR drill and cleanup, see [TUTORIAL.md](TUTORIAL.md).
