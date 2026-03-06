@@ -33,7 +33,7 @@ jobs:
       - name: Run Trajectly action
         id: trt_action
         continue-on-error: true
-        uses: trajectly/trajectly-action@v1
+        uses: trajectly/trajectly-action@v1.0.1
         with:
           spec_glob: "specs/trt-support-agent-baseline.agent.yaml"
           project_root: "."
