@@ -1,5 +1,7 @@
 # Support Escalation Demo for Trajectly (Declarative Graph)
 
+> **Note**: This demo has been superseded by [trajectly-survival-arena](https://github.com/trajectly/trajectly-survival-arena). See the **support-apocalypse** and **procurement-chaos** scenarios for the same workflows with a richer set of contracts, the full repro+shrink debug loop, and eight additional failure categories. This repo remains available as a reference for the `trajectly.App` declarative graph API.
+
 This demo shows a support escalation workflow built with `trajectly.App` and validated with deterministic replay.
 
 ## What the agent does and why Trajectly is used
